@@ -193,6 +193,31 @@ class OllamaTests(unittest.TestCase):
             OllamaNamer(endpoint="127.0.0.1:11434").endpoint, "http://127.0.0.1:11434"
         )
 
+    def test_reads_structured_filename_from_thinking_field(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            image = Path(directory) / "image.png"
+            image.write_bytes(b"pixels")
+            response = FakeResponse(
+                {
+                    "response": "",
+                    "thinking": json.dumps({"filename": "Colorful Coast"}),
+                }
+            )
+            with patch("image_autonamer.core.urlopen", return_value=response):
+                suggestion = OllamaNamer().suggest(image)
+
+            self.assertEqual(suggestion, "Colorful Coast")
+
+    def test_rejects_nonobject_api_response(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            image = Path(directory) / "image.png"
+            image.write_bytes(b"pixels")
+            with (
+                patch("image_autonamer.core.urlopen", return_value=FakeResponse([])),
+                self.assertRaisesRegex(AutoNamerError, "unexpected response"),
+            ):
+                OllamaNamer().suggest(image)
+
     def test_rejects_malformed_response(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             image = Path(directory) / "image.png"

@@ -165,13 +165,25 @@ class OllamaNamer:
                 f"Ollama did not respond within {self.timeout:g} seconds."
             ) from error
 
-        try:
-            generated = json.loads(body["response"])
-            raw_name = generated["filename"]
-        except (KeyError, TypeError, json.JSONDecodeError) as error:
-            raise AutoNamerError("Ollama returned an unexpected response.") from error
+        if not isinstance(body, dict):
+            raise AutoNamerError("Ollama returned an unexpected response.")
+
+        raw_name = None
+        for field in ("response", "thinking"):
+            candidate = body.get(field)
+            if not isinstance(candidate, str) or not candidate:
+                continue
+            try:
+                generated = json.loads(candidate)
+            except (TypeError, json.JSONDecodeError):
+                continue
+            if isinstance(generated, dict) and isinstance(
+                generated.get("filename"), str
+            ):
+                raw_name = generated["filename"]
+                break
         if not isinstance(raw_name, str):
-            raise AutoNamerError("Ollama returned a non-text filename.")
+            raise AutoNamerError("Ollama returned an unexpected response.")
         return raw_name
 
 
