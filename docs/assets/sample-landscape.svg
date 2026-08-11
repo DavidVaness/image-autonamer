@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800" role="img" aria-labelledby="title desc">
+  <title id="title">Original sample landscape</title>
+  <desc id="desc">An original vector illustration of a sunset lake with mountains and pine trees.</desc>
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4338ca"/>
+      <stop offset=".52" stop-color="#f472b6"/>
+      <stop offset="1" stop-color="#fdba74"/>
+    </linearGradient>
+    <linearGradient id="water" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#7dd3fc"/>
+      <stop offset="1" stop-color="#0f766e"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="800" fill="url(#sky)"/>
+  <circle cx="895" cy="226" r="92" fill="#fde68a" opacity=".95"/>
+  <path d="M0 480 245 222l170 191 160-244 275 312 142-174 208 178v118H0Z" fill="#312e81"/>
+  <path d="M0 518 236 335l185 136 162-178 236 206 169-119 212 143v98H0Z" fill="#475569"/>
+  <path d="M0 525h1200v275H0Z" fill="url(#water)"/>
+  <path d="M0 574c205-42 363 54 577 3 210-50 376 39 623-4v227H0Z" fill="#0f766e" opacity=".42"/>
+  <g fill="#052e2b">
+    <path d="M95 647h18v153H95z"/><path d="m104 480-74 178h148Z"/><path d="m104 534-96 190h192Z"/>
+    <path d="M1040 648h18v152h-18z"/><path d="m1049 466-76 191h152Z"/><path d="m1049 526-101 201h202Z"/>
+    <path d="M1115 690h13v110h-13z"/><path d="m1121 568-61 137h122Z"/><path d="m1121 616-79 154h158Z"/>
+  </g>
+  <g fill="none" stroke="#bae6fd" stroke-width="8" stroke-linecap="round" opacity=".7">
+    <path d="M363 648c126 20 217 20 349 0"/>
+    <path d="M445 701c88 13 155 13 242 0"/>
+  </g>
+</svg>

@@ -26,6 +26,8 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
+      - run: sh -n scripts/*.sh bin/image-autonamer
       - run: swift test
-      - run: ./scripts/build-macos-app.sh
+      - run: ./scripts/package-release.sh 0.1.0
       - run: codesign --verify --deep --strict --verbose=2 "dist/Image Autonamer.app"
+      - run: unzip -t "dist/Image-Autonamer-macOS-$(uname -m).zip"

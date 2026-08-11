@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+  <rect width="1280" height="720" fill="#ecfdf5"/>
+  <text x="80" y="88" fill="#064e3b" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="40" font-weight="700">Renamed safely in place</text>
+  <text x="80" y="133" fill="#047857" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="24">No overwrite. No cloud. No broken extension.</text>
+  <rect x="80" y="188" width="1120" height="438" rx="28" fill="#fff" stroke="#a7f3d0" stroke-width="2"/>
+  <g transform="translate(122 225)">
+    <rect width="530" height="354" rx="18" fill="#f9a8d4"/>
+    <circle cx="404" cy="82" r="47" fill="#fde68a"/>
+    <path d="M0 178 118 74l88 94 65-70 125 124 61-58 73 72v118H0Z" fill="#6366f1"/>
+    <path d="M0 218 137 125l80 95 87-85 110 99 54-41 62 49v112H0Z" fill="#312e81"/>
+    <path d="M0 254c99-27 174-23 263 3 99 29 169 24 267-7v104H0Z" fill="#0ea5e9"/>
+    <path d="M0 292c111-20 194-9 276 15 92 27 165 24 254-3v50H0Z" fill="#bae6fd" opacity=".7"/>
+    <g fill="#0f3d3e"><path d="m58 288 28-72 28 72h-18v39H76v-39Z"/><path d="m453 286 25-65 25 65h-16v42h-18v-42Z"/><path d="m399 299 19-50 20 50h-12v30h-15v-30Z"/></g>
+  </g>
+  <circle cx="1088" cy="253" r="39" fill="#22c55e"/>
+  <path d="m1069 253 13 13 26-31" fill="none" stroke="#fff" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="710" y="315" fill="#059669" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="18">AFTER</text>
+  <rect x="704" y="337" width="432" height="84" rx="16" fill="#d1fae5"/>
+  <text x="727" y="389" fill="#064e3b" font-family="ui-monospace, SFMono-Regular, monospace" font-size="23" font-weight="600">mountains-sunset-lake-trees.png</text>
+  <g font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="19" fill="#475569">
+    <text x="710" y="484">✓ First-run protection for existing files</text>
+    <text x="710" y="525">✓ Collision-safe numbered suffixes</text>
+    <text x="710" y="566">✓ Model output sanitized as untrusted input</text>
+  </g>
+</svg>

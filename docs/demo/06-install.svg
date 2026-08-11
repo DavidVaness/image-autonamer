@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+  <defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#172554"/><stop offset="1" stop-color="#4c1d95"/></linearGradient></defs>
+  <rect width="1280" height="720" fill="url(#bg)"/>
+  <g transform="translate(92 82)">
+    <rect width="110" height="110" rx="25" fill="#fff"/>
+    <rect x="20" y="23" width="70" height="57" rx="11" fill="#ede9fe" stroke="#7c3aed" stroke-width="5"/>
+    <circle cx="72" cy="40" r="8" fill="#f59e0b"/>
+    <path d="m27 72 20-21 16 17 10-11 14 15" fill="none" stroke="#4f46e5" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="82" cy="82" r="18" fill="#22c55e"/>
+    <path d="m73 82 6 6 13-15" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <text x="235" y="135" fill="#fff" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="40" font-weight="700">Try it in one command</text>
+  <text x="235" y="177" fill="#c7d2fe" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="22">Open source, local-first, and MIT licensed.</text>
+  <rect x="92" y="243" width="1096" height="163" rx="24" fill="#0f172a" stroke="#6366f1" stroke-width="2"/>
+  <circle cx="132" cy="281" r="8" fill="#f87171"/><circle cx="158" cy="281" r="8" fill="#fbbf24"/><circle cx="184" cy="281" r="8" fill="#4ade80"/>
+  <text x="130" y="347" fill="#e2e8f0" font-family="ui-monospace, SFMono-Regular, monospace" font-size="21">curl -fsSL https://raw.githubusercontent.com/</text>
+  <text x="130" y="380" fill="#a5b4fc" font-family="ui-monospace, SFMono-Regular, monospace" font-size="21">DavidVaness/image-autonamer/main/scripts/install.sh | sh</text>
+  <g font-family="-apple-system, BlinkMacSystemFont, sans-serif">
+    <text x="92" y="493" fill="#fff" font-size="25" font-weight="700">What this project demonstrates</text>
+    <text x="92" y="538" fill="#c7d2fe" font-size="20">Swift concurrency  •  App Sandbox  •  security-scoped bookmarks</text>
+    <text x="92" y="577" fill="#c7d2fe" font-size="20">Structured VLM output  •  race-safe filesystem operations  •  CI</text>
+  </g>
+  <text x="92" y="660" fill="#a5b4fc" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="19">github.com/DavidVaness/image-autonamer</text>
+</svg>
