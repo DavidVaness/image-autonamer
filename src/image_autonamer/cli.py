@@ -74,7 +74,11 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     paths = args.paths or [Path.home() / "Downloads"]
-    images = discover_images(paths, recursive=args.recursive)
+    try:
+        images = discover_images(paths, recursive=args.recursive)
+    except OSError as error:
+        print(f"error: cannot scan input paths: {error}", file=sys.stderr)
+        return 1
     if not images:
         print("No supported images found.")
         return 0

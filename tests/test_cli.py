@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import tempfile
 import unittest
-from contextlib import redirect_stdout
+from contextlib import redirect_stderr, redirect_stdout
 from io import StringIO
 from pathlib import Path
 from unittest.mock import patch
@@ -57,6 +57,23 @@ class CliTests(unittest.TestCase):
             self.assertFalse(source.exists())
             self.assertTrue((root / "blue-bird-on-branch.png").exists())
             self.assertIn("IMG_0001.PNG -> blue-bird-on-branch.png", output.getvalue())
+
+    def test_reports_scan_permission_errors_without_a_traceback(self) -> None:
+        errors = StringIO()
+        with (
+            patch(
+                "image_autonamer.cli.discover_images",
+                side_effect=PermissionError("Downloads access denied"),
+            ),
+            redirect_stderr(errors),
+        ):
+            result = main(["/private-folder"])
+
+        self.assertEqual(result, 1)
+        self.assertEqual(
+            errors.getvalue(),
+            "error: cannot scan input paths: Downloads access denied\n",
+        )
 
 
 if __name__ == "__main__":

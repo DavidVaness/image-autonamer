@@ -12,7 +12,11 @@ PLIST_PATH="$AGENTS_DIR/$LABEL.plist"
 
 mkdir -p "$AGENTS_DIR" "$LOG_DIR"
 
-"$PROJECT_DIR/bin/image-autonamer" --mark-existing "$DOWNLOADS_DIR"
+if ! "$PROJECT_DIR/bin/image-autonamer" --mark-existing "$DOWNLOADS_DIR"; then
+  echo "Could not read $DOWNLOADS_DIR." >&2
+  echo "Allow Python access to that folder in System Settings > Privacy & Security, then rerun this installer." >&2
+  exit 1
+fi
 
 python3 "$PROJECT_DIR/scripts/render-launch-agent.py" \
   "$PROJECT_DIR/scripts/launch-agent.plist.template" \
