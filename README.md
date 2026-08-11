@@ -1,9 +1,9 @@
 # Image Autonamer
 
-Give downloaded images useful names automatically, without sending them to a cloud service.
+Give downloaded images useful names automatically without uploading them to a cloud service.
 
-Image Autonamer watches a folder, asks a vision-language model running locally in [Ollama](https://ollama.com/) what each new image contains, sanitizes the answer, and safely renames the file.
-It is macOS-first, dependency-free, and designed to be understandable enough to trust with your Downloads folder.
+Image Autonamer is a small, sandboxed macOS menu-bar app.
+It watches Downloads, asks a vision-language model running locally in [Ollama](https://ollama.com/) what each new image contains, sanitizes the answer, and safely renames the file.
 
 ```text
 IMG_8472.PNG  ->  orange-cat-sleeping-on-sofa.png
@@ -13,42 +13,88 @@ image.webp    ->  blue-product-dashboard-with-charts.webp
 
 ## Why this exists
 
-Downloads folders quickly fill up with names such as `image (12).png`, UUIDs, and camera counters.
+Downloads folders quickly fill up with UUIDs, camera counters, and names such as `image (12).png`.
 Cloud vision APIs can fix that, but uploading personal screenshots and photos just to rename them is an uncomfortable trade.
-Image Autonamer keeps inference local and makes every filesystem change visible and reversible through normal file history or backups.
+Image Autonamer keeps inference local and limits its filesystem access to the Downloads folder you explicitly select.
 
 ## Features
 
 - Runs image understanding locally through Ollama.
-- Renames a single file, a directory, or an entire directory tree.
-- Automatically reacts to new Downloads on macOS with a launchd agent.
-- Supports dry runs before any file changes.
+- Watches for new top-level images in Downloads every 15 seconds.
+- Starts automatically at login through the native macOS login-item API.
+- Sandboxes the app with only user-selected file access and outbound network access.
+- Stores a security-scoped bookmark after a one-time Downloads folder selection.
+- Protects every image already in Downloads during first-time setup.
+- Waits for files to settle before processing them.
 - Never overwrites an existing file and adds `-2`, `-3`, and so on for collisions.
-- Remembers processed files in a small local SQLite database.
-- Waits for downloads to finish before processing them.
-- Uses only the Python standard library at runtime.
+- Includes a standalone Python CLI for manual and recursive batch jobs.
 
 ## Requirements
 
-- macOS for automatic folder watching.
-- Python 3.11 or newer.
-- [Ollama](https://ollama.com/download) 0.12.7 or newer.
-- About 3.3 GB of disk space for the default `qwen3-vl:4b` model.
-
-The manual command also works on Linux.
-The included launchd installer is specific to macOS.
+- macOS 13 or newer for the menu-bar app.
+- [Ollama](https://ollama.com/download) with the `qwen3-vl:4b` model.
+- Swift 6 and the Xcode Command Line Tools to build from source.
+- About 3.3 GB of disk space for the default model.
 
 ## Quick start
 
-Clone the repository, install Ollama, and pull the default local vision model:
+Install Ollama, pull the local model, clone the repository, and run the installer:
 
 ```sh
-git clone <your-repository-url>
-cd image-autonamer
 ollama pull qwen3-vl:4b
+git clone git@github.com:DavidVaness/image-autonamer.git
+cd image-autonamer
+./scripts/install-macos-app.sh
 ```
 
-Preview names for images in Downloads without changing anything:
+On first launch, macOS opens a folder picker with Downloads selected.
+Click **Allow Downloads** once.
+The app stores that choice as a security-scoped bookmark inside its sandbox and does not require Full Disk Access.
+
+The installer puts `Image Autonamer.app` in `~/Applications` and opens it.
+Use the photo/checkmark icon in the menu bar to scan manually, open Downloads, reauthorize the folder, inspect recent activity, or disable Launch at Login.
+
+Existing images are protected during the first scan.
+Only images added afterward are renamed automatically unless you explicitly choose **Process Existing Images…** from the menu.
+
+## Security model
+
+The local build is ad-hoc signed with these sandbox entitlements:
+
+- App Sandbox.
+- User-selected files with read/write access.
+- Outbound network client access.
+
+The app accepts only the actual Downloads folder in its picker.
+macOS supplies a security-scoped capability for that selected folder, and the app persists the capability as a bookmark in its private container.
+It has no Full Disk Access, no automation entitlement, and no permission to inspect unrelated folders.
+
+Image bytes are sent to the configured Ollama endpoint, which defaults to `http://127.0.0.1:11434`.
+The sandbox network entitlement technically permits outbound client connections, but the shipped code uses only that local endpoint.
+The project includes no telemetry or third-party API.
+
+The rename path is also defensive:
+
+- Unsupported files and symbolic links are ignored.
+- Model output is treated as untrusted and reduced to a lowercase ASCII slug.
+- A hard-link-first rename prevents accidental overwrites even when operations race.
+- If a generated name already exists, the app chooses the next numbered suffix.
+- The state file is kept inside the app's sandbox container.
+
+## Supported images
+
+The native app recognizes AVIF, BMP, GIF, HEIC, HEIF, JPEG, PNG, TIFF, and WebP by extension.
+AppKit converts the image to PNG before sending it to Ollama, which also makes HEIC and other macOS-readable formats reliable.
+
+Only files directly inside Downloads are watched.
+Subfolders are intentionally excluded to keep the automatic scope predictable.
+
+## Manual CLI
+
+The Python CLI remains useful for dry runs, one-off images, recursive folders, or Linux.
+It requires Python 3.11 or newer.
+
+Preview names without changing files:
 
 ```sh
 ./bin/image-autonamer --dry-run ~/Downloads
@@ -60,145 +106,86 @@ Rename one image:
 ./bin/image-autonamer ~/Downloads/IMG_8472.PNG
 ```
 
-Rename every unprocessed image currently in Downloads:
+Process a directory tree:
 
 ```sh
-./bin/image-autonamer ~/Downloads
+./bin/image-autonamer --recursive /path/to/images
 ```
 
-## Automatic Downloads watching on macOS
-
-Install the launch agent:
-
-```sh
-./scripts/install-launch-agent.sh
-```
-
-The installer marks images already in Downloads as processed, so enabling automation does not unexpectedly rename your existing library.
-After installation, a new image normally gets renamed within one minute.
-The agent combines a filesystem trigger with a one-minute interval so partially downloaded files get another chance after the 15-second settling period.
-
-The repository must remain at the same path because the launch agent runs its checked-out script directly.
-If you move the repository, run the installer again.
-
-To watch another directory or use another model:
-
-```sh
-IMAGE_AUTONAMER_DIRECTORY="$HOME/Desktop/inbox" \
-IMAGE_AUTONAMER_MODEL="qwen3-vl:8b" \
-./scripts/install-launch-agent.sh
-```
-
-To uninstall automation:
-
-```sh
-./scripts/uninstall-launch-agent.sh
-```
-
-The uninstaller preserves logs and the state database.
-They can be removed manually if you no longer need them.
-
-## Command reference
-
-```text
-usage: image-autonamer [-h] [--model MODEL] [--endpoint ENDPOINT] [--dry-run]
-                       [--force] [--recursive] [--settle-seconds SECONDS]
-                       [--max-words 2-12] [paths ...]
-```
-
-With no path, the command scans `~/Downloads`.
-
-| Option | Meaning |
-| --- | --- |
-| `--dry-run` | Ask the model and print proposed changes without renaming files. |
-| `--force` | Process an image again even if it is in the state database. |
-| `--recursive` | Include subdirectories. |
-| `--model MODEL` | Select an installed Ollama vision model. |
-| `--endpoint URL` | Use another Ollama-compatible endpoint. |
-| `--settle-seconds N` | Skip files modified less than N seconds ago. |
-| `--max-words N` | Limit generated filename length to 2 through 12 words. |
-
-You can also set `IMAGE_AUTONAMER_MODEL` and `OLLAMA_HOST` in the environment.
-
-## Safety and privacy
-
-The image bytes are sent only to the configured Ollama endpoint, which defaults to `http://127.0.0.1:11434`.
-No telemetry or third-party API is included.
-
-The project avoids destructive behavior:
-
-- It never overwrites a file.
-- A dry run performs no rename and does not alter processing state.
-- Unsupported files are ignored.
-- Existing Downloads are baselined when the watcher is first installed.
-- If one image fails, other images continue processing and the command exits nonzero.
-
-The state database lives at `~/.local/state/image-autonamer/state.sqlite3` by default.
-Deleting it is safe, but the next scan will treat previously processed files as new.
-
-## Supported files
-
-Image Autonamer recognizes AVIF, BMP, GIF, HEIC, HEIF, JPEG, PNG, TIFF, and WebP by extension.
-Actual decoding support depends on the selected Ollama model and Ollama version.
-PNG, JPEG, and WebP are the safest choices.
+Run `./bin/image-autonamer --help` for the complete command reference.
+The CLI is not sandboxed, so macOS may apply the permissions of the terminal or Python process that launches it.
+Use the native app for automatic Downloads watching.
 
 ## Troubleshooting
 
-### Cannot reach Ollama
+### Ollama is unavailable
 
-Open the Ollama application or start its service, then verify it responds:
+Open Ollama and verify the local endpoint:
 
 ```sh
 curl http://127.0.0.1:11434/api/tags
 ```
 
-### Model not found
-
-Pull the model named in the error:
+Pull the default model if it is missing:
 
 ```sh
 ollama pull qwen3-vl:4b
 ```
 
-### The automatic watcher does not run
+### Folder access was cancelled
 
-Inspect its logs:
+Open the menu-bar icon and choose **Choose Downloads…** or **Reauthorize Downloads…**.
+Select Downloads and click **Allow Downloads**.
+
+There is no `+` button to find in System Settings and Full Disk Access is not needed.
+
+### The menu-bar icon is hidden
+
+macOS may place extra status items behind Control Center when menu-bar space is limited.
+Open Control Center or quit another menu-bar utility temporarily.
+
+### Build uses the wrong Swift toolchain
+
+Point the installer at a specific Swift binary:
 
 ```sh
-tail -f "$HOME/Library/Logs/image-autonamer/stderr.log"
+SWIFT_BIN=/path/to/swift ./scripts/install-macos-app.sh
 ```
-
-Check its launchd status:
-
-```sh
-launchctl print "gui/$(id -u)/com.davidvaness.image-autonamer"
-```
-
-macOS may ask for permission to access Downloads.
-Grant access to the relevant Python executable or terminal in System Settings if needed, then reinstall the agent.
 
 ## Development
 
-Run the test suite without installing dependencies:
+Run the native tests:
+
+```sh
+swift test
+```
+
+Build and verify the signed app bundle:
+
+```sh
+./scripts/build-macos-app.sh
+codesign --verify --deep --strict "dist/Image Autonamer.app"
+```
+
+Run the Python tests:
 
 ```sh
 PYTHONPATH=src python3 -m unittest discover -s tests -v
 ```
 
-The tests cover filename sanitization, collision handling, state tracking, dry runs, file settling, discovery, and the Ollama request/response contract.
-A live VLM test is intentionally not part of CI because it requires a multi-gigabyte model.
+The native tests cover filename sanitization, first-run protection, safe renaming, and collision handling.
+The Python suite additionally covers the CLI, state database, file settling, discovery, and Ollama request/response contract.
+A live VLM test is intentionally excluded from CI because it requires a multi-gigabyte model.
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for local development details.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution details.
 
-## Design notes
+## Uninstall
 
-launchd watches directories rather than individual file-create events.
-Each invocation therefore performs an idempotent scan, while SQLite remembers the exact path, size, and modification timestamp of processed files.
-This keeps the watcher simple, handles missed events after sleep or reboot, and allows changed images to be processed again.
+Open the menu-bar icon, turn off **Launch at Login**, and quit the app.
+Then move `~/Applications/Image Autonamer.app` to Trash.
 
-The model is constrained to return a JSON filename field, but its output is still treated as untrusted.
-The final name is normalized to lowercase ASCII words, length-limited, and stripped of path characters.
-The rename uses a no-clobber hard-link operation, so even two concurrent processes cannot overwrite an existing destination.
+The sandbox container remains at `~/Library/Containers/com.davidvaness.image-autonamer` so reinstalling preserves folder authorization and processing state.
+You can remove that container manually if you also want to erase the saved state and bookmark.
 
 ## License
 

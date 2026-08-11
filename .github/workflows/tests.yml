@@ -8,7 +8,7 @@ permissions:
   contents: read
 
 jobs:
-  test:
+  python:
     runs-on: macos-latest
     strategy:
       matrix:
@@ -21,3 +21,11 @@ jobs:
       - run: python -m unittest discover -s tests -v
         env:
           PYTHONPATH: src
+
+  native:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: swift test
+      - run: ./scripts/build-macos-app.sh
+      - run: codesign --verify --deep --strict --verbose=2 "dist/Image Autonamer.app"
