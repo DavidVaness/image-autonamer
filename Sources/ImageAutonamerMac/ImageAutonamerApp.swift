@@ -19,6 +19,7 @@ struct ImageAutonamerApp: App {
 private struct MenuContent: View {
   @ObservedObject var controller: AppController
   @State private var showProcessAllConfirmation = false
+  @State private var showNamingSettings = false
 
   var body: some View {
     VStack(alignment: .leading, spacing: 12) {
@@ -82,6 +83,10 @@ private struct MenuContent: View {
         controller.chooseDownloads()
       }
 
+      Button("Naming Settings…") {
+        showNamingSettings = true
+      }
+
       Button("Process Existing Images…") {
         showProcessAllConfirmation = true
       }
@@ -101,6 +106,9 @@ private struct MenuContent: View {
     }
     .padding(14)
     .frame(width: 340)
+    .sheet(isPresented: $showNamingSettings) {
+      NamingSettingsView(controller: controller)
+    }
     .alert("Process existing images?", isPresented: $showProcessAllConfirmation) {
       Button("Cancel", role: .cancel) {}
       Button("Process All") {
@@ -127,6 +135,124 @@ private struct MenuContent: View {
     case .installOllama: "Open Ollama Setup"
     case .pullModel: "Copy Model Install Command"
     case .reauthorizeFolder: "Reauthorize Downloads"
+    }
+  }
+}
+
+private struct NamingSettingsView: View {
+  @ObservedObject var controller: AppController
+  @Environment(\.dismiss) private var dismiss
+  @State private var style: NamingStyle
+  @State private var organizationVocabulary: String
+
+  init(controller: AppController) {
+    self.controller = controller
+    _style = State(initialValue: controller.namingStyle)
+    _organizationVocabulary = State(initialValue: controller.organizationVocabulary)
+  }
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 18) {
+      VStack(alignment: .leading, spacing: 5) {
+        Text("Naming Settings")
+          .font(.title2.weight(.semibold))
+        Text("Choose what a useful filename means for your workflow.")
+          .foregroundStyle(.secondary)
+      }
+
+      Picker("Style", selection: $style) {
+        ForEach(NamingStyle.allCases, id: \.self) { option in
+          Text(option.title).tag(option)
+        }
+      }
+      .pickerStyle(.radioGroup)
+
+      Text(style.explanation)
+        .font(.callout)
+        .foregroundStyle(.secondary)
+
+      if style == .businessDocument {
+        VStack(alignment: .leading, spacing: 6) {
+          Text("Known organizations")
+            .font(.headline)
+          TextField("Example & Co., Cedar Labs", text: $organizationVocabulary)
+            .textFieldStyle(.roundedBorder)
+          Text(
+            "Optional, comma-separated spelling hints. A name is used only when it is visibly supported in the image."
+          )
+          .font(.caption)
+          .foregroundStyle(.secondary)
+        }
+      }
+
+      GroupBox {
+        VStack(alignment: .leading, spacing: 8) {
+          HStack {
+            Button("Preview with Image…") {
+              controller.previewImage(
+                style: style,
+                organizationVocabulary: organizationVocabulary
+              )
+            }
+            .disabled(controller.isPreviewing)
+            if controller.isPreviewing {
+              ProgressView()
+                .controlSize(.small)
+              Text("Analyzing locally…")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
+          }
+          if let result = controller.previewResult {
+            Label(result, systemImage: "checkmark.circle.fill")
+              .font(.caption)
+              .foregroundStyle(.green)
+              .textSelection(.enabled)
+          }
+          if let error = controller.previewError {
+            Label(error, systemImage: "exclamationmark.triangle.fill")
+              .font(.caption)
+              .foregroundStyle(.red)
+          }
+          if controller.previewResult == nil && controller.previewError == nil
+            && !controller.isPreviewing
+          {
+            Text("Preview analyzes one image without renaming or moving it.")
+              .font(.caption)
+              .foregroundStyle(.secondary)
+          }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+      }
+
+      Spacer()
+
+      HStack {
+        Spacer()
+        Button("Cancel") {
+          dismiss()
+        }
+        .keyboardShortcut(.cancelAction)
+        Button("Save") {
+          controller.saveNamingSettings(
+            style: style,
+            organizationVocabulary: organizationVocabulary
+          )
+          dismiss()
+        }
+        .keyboardShortcut(.defaultAction)
+      }
+    }
+    .padding(22)
+    .frame(width: 500, height: style == .businessDocument ? 440 : 370)
+    .onChange(of: style) { _ in
+      controller.clearPreview()
+    }
+    .onChange(of: organizationVocabulary) { _ in
+      controller.clearPreview()
+    }
+    .onDisappear {
+      controller.cancelPreview()
     }
   }
 }

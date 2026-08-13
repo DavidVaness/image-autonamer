@@ -3,6 +3,7 @@ import Foundation
 import ImageAutonamerKit
 import OSLog
 import ServiceManagement
+import UniformTypeIdentifiers
 
 @MainActor
 final class AppController: ObservableObject {
@@ -16,16 +17,31 @@ final class AppController: ObservableObject {
   @Published private(set) var launchAtLogin = false
   @Published private(set) var hasFolderAccess = false
   @Published private(set) var recovery: ProcessingEvent.Recovery?
+  @Published private(set) var namingStyle: NamingStyle = .descriptive
+  @Published private(set) var organizationVocabulary = ""
+  @Published private(set) var isPreviewing = false
+  @Published private(set) var previewResult: String?
+  @Published private(set) var previewError: String?
 
   private let defaultDownloadsURL: URL
   private var downloadsURL: URL?
   private var processor: ImageProcessor?
+  private var previewTask: Task<Void, Never>?
   private var securityScopedURL: URL?
   private var timer: Timer?
   private static let bookmarkKey = "downloadsSecurityScopedBookmark"
+  private static let namingStyleKey = "namingStyle"
+  private static let organizationVocabularyKey = "organizationVocabulary"
 
   init() {
     defaultDownloadsURL = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask)[0]
+    if let rawStyle = UserDefaults.standard.string(forKey: Self.namingStyleKey),
+      let savedStyle = NamingStyle(rawValue: rawStyle)
+    {
+      namingStyle = savedStyle
+    }
+    organizationVocabulary =
+      UserDefaults.standard.string(forKey: Self.organizationVocabularyKey) ?? ""
     let loginService = SMAppService.mainApp
     launchAtLogin = loginService.status == .enabled
     if loginService.status == .notRegistered || loginService.status == .notFound {
@@ -115,6 +131,75 @@ final class AppController: ObservableObject {
     case nil:
       break
     }
+  }
+
+  func saveNamingSettings(style: NamingStyle, organizationVocabulary: String) {
+    let organizations = Self.organizations(from: organizationVocabulary)
+    namingStyle = style
+    self.organizationVocabulary = organizations.joined(separator: ", ")
+    UserDefaults.standard.set(style.rawValue, forKey: Self.namingStyleKey)
+    UserDefaults.standard.set(
+      self.organizationVocabulary,
+      forKey: Self.organizationVocabularyKey
+    )
+    rebuildProcessor()
+    activity = "Using \(style.title.lowercased()) names."
+  }
+
+  func previewImage(style: NamingStyle, organizationVocabulary: String) {
+    NSApplication.shared.setActivationPolicy(.regular)
+    NSApplication.shared.activate(ignoringOtherApps: true)
+    defer {
+      NSApplication.shared.setActivationPolicy(.accessory)
+    }
+
+    let panel = NSOpenPanel()
+    panel.title = "Preview an image name"
+    panel.message = "The selected image is analyzed locally and will not be renamed."
+    panel.prompt = "Preview Name"
+    panel.canChooseFiles = true
+    panel.canChooseDirectories = false
+    panel.allowsMultipleSelection = false
+    panel.allowedContentTypes = [.image]
+
+    guard panel.runModal() == .OK, let imageURL = panel.url else { return }
+    let configuration = NamingConfiguration(
+      style: style,
+      knownOrganizations: Self.organizations(from: organizationVocabulary)
+    )
+    isPreviewing = true
+    previewResult = nil
+    previewError = nil
+    previewTask?.cancel()
+    previewTask = Task {
+      do {
+        let suggestion = try await OllamaClient(configuration: configuration)
+          .suggestName(for: imageURL)
+        let stem = try FilenameSanitizer.slugify(suggestion)
+        guard !Task.isCancelled else { return }
+        previewResult =
+          "\(imageURL.lastPathComponent) → \(stem).\(imageURL.pathExtension.lowercased())"
+      } catch {
+        guard !Task.isCancelled else { return }
+        previewError = error.localizedDescription
+      }
+      isPreviewing = false
+      previewTask = nil
+    }
+  }
+
+  func clearPreview() {
+    guard !isPreviewing else { return }
+    previewResult = nil
+    previewError = nil
+  }
+
+  func cancelPreview() {
+    previewTask?.cancel()
+    previewTask = nil
+    isPreviewing = false
+    previewResult = nil
+    previewError = nil
   }
 
   func chooseDownloads() {
@@ -217,7 +302,7 @@ final class AppController: ObservableObject {
     processor = ImageProcessor(
       directory: url,
       stateURL: stateURL,
-      namer: OllamaClient()
+      namer: OllamaClient(configuration: currentNamingConfiguration)
     )
     hasFolderAccess = true
     recovery = nil
@@ -228,5 +313,34 @@ final class AppController: ObservableObject {
   private func isDownloads(_ url: URL) -> Bool {
     url.resolvingSymlinksInPath().standardizedFileURL
       == defaultDownloadsURL.resolvingSymlinksInPath().standardizedFileURL
+  }
+
+  private var currentNamingConfiguration: NamingConfiguration {
+    NamingConfiguration(
+      style: namingStyle,
+      knownOrganizations: Self.organizations(from: organizationVocabulary)
+    )
+  }
+
+  private func rebuildProcessor() {
+    guard let url = downloadsURL else { return }
+    let applicationSupport = FileManager.default.urls(
+      for: .applicationSupportDirectory,
+      in: .userDomainMask
+    )[0]
+    let stateURL =
+      applicationSupport
+      .appending(path: "Image Autonamer", directoryHint: .isDirectory)
+      .appending(path: "state.json")
+    processor = ImageProcessor(
+      directory: url,
+      stateURL: stateURL,
+      namer: OllamaClient(configuration: currentNamingConfiguration)
+    )
+  }
+
+  private static func organizations(from value: String) -> [String] {
+    let separators = CharacterSet(charactersIn: ",\n")
+    return NamingConfiguration.cleanOrganizations(value.components(separatedBy: separators))
   }
 }

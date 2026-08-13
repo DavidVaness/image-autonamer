@@ -22,7 +22,7 @@ for tool in curl ditto shasum unzip; do
 done
 
 if [ "$ARCH" != "arm64" ]; then
-  echo "The v0.1 binary supports Apple Silicon." >&2
+  echo "The release binary supports Apple Silicon." >&2
   echo "Intel Macs can build from source with scripts/install-macos-app.sh." >&2
   exit 1
 fi

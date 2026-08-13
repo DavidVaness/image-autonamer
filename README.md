@@ -27,7 +27,7 @@
 <p align="center">
   <a href="docs/assets/demo.mp4"><strong>Watch the 60-second demo in HD</strong></a>
   ·
-  <a href="https://github.com/DavidVaness/image-autonamer/releases/latest"><strong>Download v0.1.0</strong></a>
+  <a href="https://github.com/DavidVaness/image-autonamer/releases/latest"><strong>Download v0.2.0</strong></a>
 </p>
 
 ## Install in one command
@@ -46,7 +46,7 @@ That one explicit choice creates a persistent security-scoped bookmark inside th
 Full Disk Access is not required.
 
 > [!NOTE]
-> The v0.1.0 binary is ad-hoc signed and supports Apple Silicon.
+> The v0.2.0 binary is ad-hoc signed and supports Apple Silicon.
 > A Developer ID certificate and Apple notarization are the remaining steps for conventional consumer distribution.
 > Intel Macs can build from source.
 
@@ -76,6 +76,22 @@ Representative everyday results look like this:
 
 The original extension is normalized and preserved.
 If a filename already exists, Image Autonamer adds `-2`, `-3`, and so on without overwriting anything.
+
+## Naming modes
+
+Open **Naming Settings…** from the menu bar app to choose one deliberately small preset.
+The preview button analyzes a selected image locally and shows the proposed filename without renaming or moving the file.
+
+| Preset | Example result | Best for |
+| --- | --- | --- |
+| Descriptive | `red-coffee-mug-beside-laptop.jpg` | General screenshots, photos, and downloaded images |
+| Date + descriptive | `2026-08-11-red-coffee-mug-beside-laptop.jpg` | Chronological sorting and camera imports |
+| Business document | `example-co-invoice-annual-software-renewal.png` | Invoices, reports, dashboards, and business screenshots |
+
+Date-prefixed names use the image capture date when metadata provides one, then fall back to the file creation or modification date.
+Business mode can accept a short list of known organization spellings as optional context.
+The model must still report that the exact name or wordmark is visibly supported before deterministic filename assembly includes it.
+There is intentionally no unrestricted custom prompt box.
 
 ## Measured locally
 
@@ -108,6 +124,7 @@ Image Autonamer keeps inference on the Mac and limits automatic filesystem acces
 - Protects images that existed before first-run setup.
 - Waits for downloads to settle and verifies that a file did not change during analysis.
 - Treats model output as untrusted input and reduces it to a safe lowercase ASCII slug.
+- Offers three focused naming presets and a no-rename preview instead of an open-ended prompt surface.
 - Uses collision-safe filesystem operations that never overwrite another file.
 - Includes a standalone Python CLI for dry runs, one-off images, recursive batches, and Linux.
 
@@ -122,13 +139,15 @@ flowchart LR
     B --> C["Settle and fingerprint checks"]
     C --> D["AppKit PNG conversion"]
     D --> E["Local Ollama VLM"]
-    E --> F["JSON schema and slug sanitizer"]
-    F --> G["Hard-link-first safe rename"]
-    G --> H["Atomic state file"]
+    E --> F["Structured visible facts"]
+    F --> G["Deterministic name composer and sanitizer"]
+    G --> H["Hard-link-first safe rename"]
+    H --> I["Atomic state file"]
 ```
 
 `ImageProcessor` is a Swift actor, so scans cannot mutate state concurrently.
-Ollama is asked for schema-constrained JSON at a low temperature, but its filename is still sanitized before touching the filesystem.
+Ollama is asked for schema-constrained visible facts at a low temperature.
+Deterministic code applies the selected naming preset, and the result is still sanitized before touching the filesystem.
 The source is fingerprinted before and after inference to catch partial or changing downloads.
 
 ## Security model
@@ -140,6 +159,7 @@ It has no Full Disk Access, no automation entitlement, no telemetry, and no thir
 Image bytes are sent to the configured Ollama endpoint, which is hard-coded by default to `http://127.0.0.1:11434`.
 The sandbox entitlement technically permits outbound client connections because macOS does not offer a localhost-only network entitlement.
 The shipped code uses no remote endpoint.
+Optional organization vocabulary is included only in requests to that same local endpoint and is stored in the app's private preferences.
 
 Filesystem handling is defensive:
 
@@ -158,8 +178,10 @@ Filesystem handling is defensive:
 | 15-second polling | FSEvents | A small top-level directory scan is predictable, easy to test, and naturally pairs with the settle window for partially downloaded files. |
 | Local Ollama inference | Hosted vision API | Privacy and offline operation matter more here than model startup time and disk usage. |
 | JSON schema plus sanitizer | Free-form model text | Model output remains untrusted even when structured generation succeeds. |
+| Three presets plus deterministic composition | Raw custom prompts | Common workflows stay predictable, testable, and resistant to prompt mistakes while the tool remains focused. |
+| Visible-evidence gate for brands | Guessing organizations from visual style | A missed brand is less harmful than a confidently wrong business filename. |
 | Hard link, then unlink | `moveItem` after an existence check | Claiming the destination atomically removes the check-then-write race that could overwrite a file. |
-| Ad-hoc signed v0.1 artifact | Unsigned bundle or premature App Store packaging | The artifact is reproducible and sandboxed today, while notarization remains an explicit production-distribution follow-up. |
+| Ad-hoc signed release artifact | Unsigned bundle or premature App Store packaging | The artifact is reproducible and sandboxed today, while notarization remains an explicit production-distribution follow-up. |
 
 ## Manual CLI
 
@@ -198,7 +220,7 @@ swift test
 PYTHONPATH=src python3 -m unittest discover -s tests -v
 
 # Release app and checksum manifest
-./scripts/package-release.sh 0.1.0
+./scripts/package-release.sh 0.2.0
 
 # Rebuild the 60-second MP4 and GIF from original SVG sources
 ./scripts/build-demo.sh
