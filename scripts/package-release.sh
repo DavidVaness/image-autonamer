@@ -7,13 +7,8 @@ VERSION=${1:-0.1.0}
 ARCH=$(uname -m)
 ARCHIVE_NAME="Image-Autonamer-macOS-$ARCH.zip"
 DIST_DIR="$PROJECT_DIR/dist"
-PLIST_VERSION=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' \
-  "$PROJECT_DIR/macos/Info.plist")
 
-if [ "$VERSION" != "$PLIST_VERSION" ]; then
-  echo "Release version $VERSION does not match Info.plist version $PLIST_VERSION." >&2
-  exit 1
-fi
+"$PROJECT_DIR/scripts/check-version.sh" "$VERSION"
 
 "$PROJECT_DIR/scripts/build-macos-app.sh"
 

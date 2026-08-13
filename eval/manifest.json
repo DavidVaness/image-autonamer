@@ -1,0 +1,62 @@
+{
+  "license": "MIT",
+  "note": "Every fixture is original vector artwork created for this repository.",
+  "cases": [
+    {
+      "id": "landscape",
+      "path": "../docs/assets/sample-landscape.png",
+      "category": "illustration",
+      "expected_concepts": [["mountain", "mountains"], ["lake", "water"], ["tree", "trees", "pine"]],
+      "forbidden_concepts": ["person", "city"]
+    },
+    {
+      "id": "dashboard",
+      "path": "fixtures/dashboard.png",
+      "category": "screenshot",
+      "expected_concepts": [["sales"], ["dashboard"], ["chart", "revenue"]],
+      "forbidden_concepts": ["person", "photo"]
+    },
+    {
+      "id": "coffee-desk",
+      "path": "fixtures/coffee-desk.png",
+      "category": "objects",
+      "expected_concepts": [["coffee", "mug", "cup"], ["laptop", "computer", "monitor"], ["desk", "table", "checkmark"]],
+      "forbidden_concepts": ["person", "restaurant"]
+    },
+    {
+      "id": "receipt",
+      "path": "fixtures/receipt.png",
+      "category": "document",
+      "expected_concepts": [["receipt"], ["cafe", "coffee"], ["total", "payment", "15"]],
+      "forbidden_concepts": ["invoice", "person"]
+    },
+    {
+      "id": "flowchart",
+      "path": "fixtures/flowchart.png",
+      "category": "diagram",
+      "expected_concepts": [["image"], ["workflow", "flowchart"], ["processing", "model"]],
+      "forbidden_concepts": ["person", "photo"]
+    },
+    {
+      "id": "bicycle-street",
+      "path": "fixtures/bicycle-street.png",
+      "category": "object-scene",
+      "expected_concepts": [["red"], ["bicycle", "bike"], ["street", "road"]],
+      "forbidden_concepts": ["person", "motorcycle"]
+    },
+    {
+      "id": "plant-window",
+      "path": "fixtures/plant-window.png",
+      "category": "interior",
+      "expected_concepts": [["plant"], ["window"], ["sun", "sunlight", "sunny"]],
+      "forbidden_concepts": ["person", "garden"]
+    },
+    {
+      "id": "error-dialog",
+      "path": "fixtures/error-dialog.png",
+      "category": "interface",
+      "expected_concepts": [["upload"], ["failed", "failure", "error"], ["dialog", "message", "window"]],
+      "forbidden_concepts": ["person", "download"]
+    }
+  ]
+}

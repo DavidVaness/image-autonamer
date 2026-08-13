@@ -1,0 +1,92 @@
+{
+  "model": "qwen3-vl:4b",
+  "generated_at": "2026-08-13T06:33:27.210674+00:00",
+  "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+  "cases": 8,
+  "successful": 8,
+  "useful": 8,
+  "useful_rate": 1.0,
+  "median_latency_seconds": 0.78,
+  "results": [
+    {
+      "id": "landscape",
+      "category": "illustration",
+      "filename": "mountain-lake-sunset",
+      "latency_seconds": 1.09,
+      "concept_recall": 0.667,
+      "forbidden_concepts": [],
+      "useful": true,
+      "error": null
+    },
+    {
+      "id": "dashboard",
+      "category": "screenshot",
+      "filename": "sales-dashboard-revenue-orders-growth",
+      "latency_seconds": 0.82,
+      "concept_recall": 1.0,
+      "forbidden_concepts": [],
+      "useful": true,
+      "error": null
+    },
+    {
+      "id": "coffee-desk",
+      "category": "objects",
+      "filename": "red-cup-monitor-check",
+      "latency_seconds": 0.72,
+      "concept_recall": 0.667,
+      "forbidden_concepts": [],
+      "useful": true,
+      "error": null
+    },
+    {
+      "id": "receipt",
+      "category": "document",
+      "filename": "cafe-receipt-cappuccino-croissant-orange-juice-total",
+      "latency_seconds": 1.13,
+      "concept_recall": 1.0,
+      "forbidden_concepts": [],
+      "useful": true,
+      "error": null
+    },
+    {
+      "id": "flowchart",
+      "category": "diagram",
+      "filename": "new-image-local-vision-model-safe-filename",
+      "latency_seconds": 0.75,
+      "concept_recall": 0.667,
+      "forbidden_concepts": [],
+      "useful": true,
+      "error": null
+    },
+    {
+      "id": "bicycle-street",
+      "category": "object-scene",
+      "filename": "red-bicycle-road-building",
+      "latency_seconds": 0.69,
+      "concept_recall": 1.0,
+      "forbidden_concepts": [],
+      "useful": true,
+      "error": null
+    },
+    {
+      "id": "plant-window",
+      "category": "interior",
+      "filename": "window-plant-sunlight",
+      "latency_seconds": 0.71,
+      "concept_recall": 1.0,
+      "forbidden_concepts": [],
+      "useful": true,
+      "error": null
+    },
+    {
+      "id": "error-dialog",
+      "category": "interface",
+      "filename": "upload-failed-server-error-try-again",
+      "latency_seconds": 0.82,
+      "concept_recall": 0.667,
+      "forbidden_concepts": [],
+      "useful": true,
+      "error": null
+    }
+  ]
+}

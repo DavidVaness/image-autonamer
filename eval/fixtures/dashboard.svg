@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600">
+  <rect width="800" height="600" rx="28" fill="#f8fafc"/>
+  <rect width="180" height="600" fill="#312e81"/>
+  <circle cx="55" cy="58" r="20" fill="#a78bfa"/>
+  <text x="90" y="67" fill="#fff" font-family="sans-serif" font-size="24" font-weight="700">ACME</text>
+  <g fill="#c4b5fd" font-family="sans-serif" font-size="18"><text x="34" y="145">Overview</text><text x="34" y="195">Customers</text><text x="34" y="245">Reports</text></g>
+  <text x="220" y="70" fill="#0f172a" font-family="sans-serif" font-size="30" font-weight="700">Sales dashboard</text>
+  <rect x="220" y="105" width="160" height="90" rx="16" fill="#ede9fe"/><rect x="400" y="105" width="160" height="90" rx="16" fill="#dcfce7"/><rect x="580" y="105" width="160" height="90" rx="16" fill="#fef3c7"/>
+  <g font-family="sans-serif"><text x="240" y="140" fill="#6d28d9" font-size="16">REVENUE</text><text x="240" y="177" fill="#4c1d95" font-size="27" font-weight="700">€42,580</text><text x="420" y="140" fill="#15803d" font-size="16">ORDERS</text><text x="420" y="177" fill="#14532d" font-size="27" font-weight="700">1,284</text><text x="600" y="140" fill="#b45309" font-size="16">GROWTH</text><text x="600" y="177" fill="#78350f" font-size="27" font-weight="700">+18.4%</text></g>
+  <rect x="220" y="225" width="520" height="315" rx="20" fill="#fff" stroke="#e2e8f0" stroke-width="2"/>
+  <text x="250" y="268" fill="#334155" font-family="sans-serif" font-size="19" font-weight="700">Monthly revenue</text>
+  <path d="M265 480V310M265 480H700" stroke="#cbd5e1" stroke-width="3"/>
+  <g fill="#8b5cf6"><rect x="300" y="412" width="48" height="68" rx="5"/><rect x="375" y="374" width="48" height="106" rx="5"/><rect x="450" y="397" width="48" height="83" rx="5"/><rect x="525" y="328" width="48" height="152" rx="5"/><rect x="600" y="290" width="48" height="190" rx="5"/></g>
+</svg>

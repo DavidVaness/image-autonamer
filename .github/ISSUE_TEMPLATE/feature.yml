@@ -1,0 +1,34 @@
+name: Focused improvement
+description: Suggest an improvement to the private image-renaming workflow.
+title: "[Improvement]: "
+labels: ["enhancement", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: Image Autonamer intentionally does one thing well, so proposals should strengthen private automatic image naming rather than turn it into a general file manager.
+  - type: textarea
+    attributes:
+      label: Problem
+      description: What concrete problem do you experience in the current image-renaming workflow?
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Desired outcome
+      description: Describe the result you need without prescribing a particular implementation.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Current workaround
+      description: How do you solve this today?
+    validations:
+      required: true
+  - type: checkboxes
+    attributes:
+      label: Scope check
+      options:
+        - label: This keeps image naming local and private.
+          required: true
+        - label: This does not require general file organization, cloud storage, or photo-library management.
+          required: true

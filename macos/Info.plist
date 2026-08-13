@@ -8,6 +8,8 @@
   <string>ImageAutonamer</string>
   <key>CFBundleIdentifier</key>
   <string>com.davidvaness.image-autonamer</string>
+  <key>CFBundleIconFile</key>
+  <string>AppIcon</string>
   <key>CFBundleInfoDictionaryVersion</key>
   <string>6.0</string>
   <key>CFBundleName</key>
@@ -20,9 +22,9 @@
   <string>1</string>
   <key>LSMinimumSystemVersion</key>
   <string>13.0</string>
-	<key>LSUIElement</key>
-	<true/>
-	<key>NSHumanReadableCopyright</key>
+  <key>LSUIElement</key>
+  <true/>
+  <key>NSHumanReadableCopyright</key>
   <string>Copyright © 2026 David Vaness</string>
   <key>NSPrincipalClass</key>
   <string>NSApplication</string>

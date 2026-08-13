@@ -1,0 +1,73 @@
+name: Notarized release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version matching macOS Info.plist
+        required: true
+        default: 0.1.0
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Require signing credentials
+        env:
+          CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE_P12 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.APPLE_KEYCHAIN_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+          CODESIGN_IDENTITY: ${{ secrets.DEVELOPER_ID_APPLICATION }}
+        run: |
+          if [ -z "$CERTIFICATE" ] || [ -z "$CERTIFICATE_PASSWORD" ] || [ -z "$KEYCHAIN_PASSWORD" ] || [ -z "$APPLE_ID" ] || [ -z "$APPLE_TEAM_ID" ] || [ -z "$APPLE_APP_PASSWORD" ] || [ -z "$CODESIGN_IDENTITY" ]; then
+            echo "Configure every Apple signing secret documented in docs/RELEASING.md." >&2
+            exit 1
+          fi
+      - name: Import Developer ID certificate
+        env:
+          CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE_P12 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.APPLE_KEYCHAIN_PASSWORD }}
+        run: |
+          CERTIFICATE_PATH="$RUNNER_TEMP/developer-id.p12"
+          KEYCHAIN_PATH="$RUNNER_TEMP/image-autonamer.keychain-db"
+          printf '%s' "$CERTIFICATE" | base64 --decode > "$CERTIFICATE_PATH"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERTIFICATE_PATH" -P "$CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security list-keychain -d user -s "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+      - run: swift test
+      - name: Build Developer ID app
+        env:
+          CODESIGN_IDENTITY: ${{ secrets.DEVELOPER_ID_APPLICATION }}
+        run: ./scripts/build-macos-app.sh
+      - name: Notarize and staple
+        env:
+          CODESIGN_IDENTITY: ${{ secrets.DEVELOPER_ID_APPLICATION }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        run: ./scripts/notarize-release.sh "${{ inputs.version }}"
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          TAG="v$VERSION"
+          ARCH=$(uname -m)
+          git tag "$TAG"
+          git push origin "$TAG"
+          gh release create "$TAG" \
+            "dist/Image-Autonamer-$VERSION-macOS-$ARCH.dmg" \
+            dist/checksums.txt \
+            --generate-notes \
+            --title "Image Autonamer $TAG"

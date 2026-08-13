@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600">
+  <rect width="800" height="600" fill="#f8fafc"/>
+  <text x="400" y="72" text-anchor="middle" fill="#0f172a" font-family="sans-serif" font-size="31" font-weight="700">Image processing workflow</text>
+  <g font-family="sans-serif" font-size="19" font-weight="650" text-anchor="middle"><rect x="70" y="235" width="160" height="105" rx="20" fill="#dbeafe" stroke="#3b82f6" stroke-width="3"/><text x="150" y="295" fill="#1e3a8a">New image</text><rect x="320" y="235" width="160" height="105" rx="20" fill="#ede9fe" stroke="#8b5cf6" stroke-width="3"/><text x="400" y="282" fill="#4c1d95">Local vision</text><text x="400" y="309" fill="#4c1d95">model</text><rect x="570" y="235" width="160" height="105" rx="20" fill="#dcfce7" stroke="#22c55e" stroke-width="3"/><text x="650" y="282" fill="#14532d">Safe</text><text x="650" y="309" fill="#14532d">filename</text></g>
+  <g stroke="#64748b" stroke-width="7" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M245 287h55"/><path d="m283 270 18 17-18 17"/><path d="M495 287h55"/><path d="m533 270 18 17-18 17"/></g>
+  <rect x="230" y="410" width="340" height="72" rx="16" fill="#0f172a"/><text x="400" y="455" text-anchor="middle" fill="#e2e8f0" font-family="monospace" font-size="19">photo.png → red-bicycle-street.png</text>
+</svg>

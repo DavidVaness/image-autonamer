@@ -51,6 +51,13 @@ private struct MenuContent: View {
         Divider()
       }
 
+      if let recovery = controller.recovery {
+        Button(recoveryLabel(for: recovery)) {
+          controller.performRecovery()
+        }
+        .buttonStyle(.borderedProminent)
+      }
+
       Toggle(
         "Launch at Login",
         isOn: Binding(
@@ -112,6 +119,14 @@ private struct MenuContent: View {
     case .renamed: "checkmark.circle.fill"
     case .skipped: "minus.circle"
     case .failed: "exclamationmark.triangle.fill"
+    }
+  }
+
+  private func recoveryLabel(for recovery: ProcessingEvent.Recovery) -> String {
+    switch recovery {
+    case .installOllama: "Open Ollama Setup"
+    case .pullModel: "Copy Model Install Command"
+    case .reauthorizeFolder: "Reauthorize Downloads"
     }
   }
 }

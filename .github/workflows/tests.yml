@@ -21,6 +21,8 @@ jobs:
       - run: python -m unittest discover -s tests -v
         env:
           PYTHONPATH: src
+      - run: python -m py_compile eval/run.py scripts/build-brand-assets.py
+      - run: python -m json.tool eval/manifest.json >/dev/null
 
   native:
     runs-on: macos-latest
@@ -30,4 +32,5 @@ jobs:
       - run: swift test
       - run: ./scripts/package-release.sh 0.1.0
       - run: codesign --verify --deep --strict --verbose=2 "dist/Image Autonamer.app"
+      - run: test -f "dist/Image Autonamer.app/Contents/Resources/AppIcon.icns"
       - run: unzip -t "dist/Image-Autonamer-macOS-$(uname -m).zip"

@@ -77,6 +77,22 @@ Representative everyday results look like this:
 The original extension is normalized and preserved.
 If a filename already exists, Image Autonamer adds `-2`, `-3`, and so on without overwriting anything.
 
+## Measured locally
+
+The repository includes eight original, MIT-licensed evaluation images across illustrations, screenshots, objects, documents, diagrams, interfaces, and indoor and outdoor scenes.
+The harness records the proposed filename, concept coverage, forbidden-concept hits, and latency for every image without renaming the fixtures.
+
+The checked-in `qwen3-vl:4b` baseline produced useful filenames for all 8 fixtures with a warm-model median local inference time of approximately 0.8 seconds on the release machine.
+Cold-model latency was higher and varies substantially with hardware and Ollama state.
+This is a small transparent baseline, not a claim of general model accuracy.
+
+```sh
+./scripts/build-eval-fixtures.sh
+./eval/run.py --model qwen3-vl:4b --output eval/results/qwen3-vl-4b.json
+```
+
+See [`eval/manifest.json`](eval/manifest.json) for the explicit rubric and [`eval/results/qwen3-vl-4b.json`](eval/results/qwen3-vl-4b.json) for the complete result.
+
 ## Why this exists
 
 Downloads folders quickly fill with UUIDs, camera counters, and names such as `image (12).png`.
@@ -186,6 +202,9 @@ PYTHONPATH=src python3 -m unittest discover -s tests -v
 
 # Rebuild the 60-second MP4 and GIF from original SVG sources
 ./scripts/build-demo.sh
+
+# Rebuild the native icon and GitHub social preview
+./scripts/build-brand-assets.py
 ```
 
 Native tests cover sanitization, first-run protection, safe renaming, and collision handling.
@@ -204,6 +223,7 @@ docs/                        Original demo sources and generated media
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines.
+See [ROADMAP.md](ROADMAP.md) for the deliberately narrow product direction and [SECURITY.md](SECURITY.md) for private vulnerability reporting.
 
 ## Troubleshooting
 

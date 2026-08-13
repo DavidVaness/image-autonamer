@@ -15,6 +15,7 @@ final class AppController: ObservableObject {
   @Published private(set) var isScanning = false
   @Published private(set) var launchAtLogin = false
   @Published private(set) var hasFolderAccess = false
+  @Published private(set) var recovery: ProcessingEvent.Recovery?
 
   private let defaultDownloadsURL: URL
   private var downloadsURL: URL?
@@ -63,10 +64,13 @@ final class AppController: ObservableObject {
       recentEvents = Array((events + recentEvents).prefix(8))
       if let failure = events.first(where: { $0.kind == .failed }) {
         activity = failure.message
+        recovery = failure.recovery
       } else if let rename = events.first(where: { $0.kind == .renamed }) {
         activity = rename.message
+        recovery = nil
       } else if let baseline = events.first(where: { $0.kind == .baseline }) {
         activity = baseline.message
+        recovery = nil
       } else {
         activity = "Watching Downloads"
       }
@@ -96,6 +100,21 @@ final class AppController: ObservableObject {
   func openDownloads() {
     guard let downloadsURL else { return }
     NSWorkspace.shared.open(downloadsURL)
+  }
+
+  func performRecovery() {
+    switch recovery {
+    case .installOllama:
+      NSWorkspace.shared.open(URL(string: "https://ollama.com/download")!)
+    case .pullModel(let model):
+      NSPasteboard.general.clearContents()
+      NSPasteboard.general.setString("ollama pull \(model)", forType: .string)
+      activity = "Copied ollama pull \(model) to the clipboard."
+    case .reauthorizeFolder:
+      chooseDownloads()
+    case nil:
+      break
+    }
   }
 
   func chooseDownloads() {
@@ -201,6 +220,7 @@ final class AppController: ObservableObject {
       namer: OllamaClient()
     )
     hasFolderAccess = true
+    recovery = nil
     activity = "Watching Downloads"
     startMonitoring()
   }

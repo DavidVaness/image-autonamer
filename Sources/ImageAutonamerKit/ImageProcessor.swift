@@ -8,12 +8,20 @@ public struct ProcessingEvent: Sendable, Equatable {
     case failed
   }
 
+  public enum Recovery: Sendable, Equatable {
+    case installOllama
+    case pullModel(String)
+    case reauthorizeFolder
+  }
+
   public let kind: Kind
   public let message: String
+  public let recovery: Recovery?
 
-  public init(kind: Kind, message: String) {
+  public init(kind: Kind, message: String, recovery: Recovery? = nil) {
     self.kind = kind
     self.message = message
+    self.recovery = recovery
   }
 }
 
@@ -67,12 +75,7 @@ public actor ImageProcessor {
             events.append(event)
           }
         } catch {
-          events.append(
-            ProcessingEvent(
-              kind: .failed,
-              message: "\(image.lastPathComponent): \(error.localizedDescription)"
-            )
-          )
+          events.append(Self.failureEvent(for: error, filename: image.lastPathComponent))
         }
       }
       if force, !state.didBaseline {
@@ -81,7 +84,7 @@ public actor ImageProcessor {
       }
       return events
     } catch {
-      return [ProcessingEvent(kind: .failed, message: error.localizedDescription)]
+      return [Self.failureEvent(for: error)]
     }
   }
 
@@ -183,6 +186,27 @@ public actor ImageProcessor {
     )
     let data = try JSONEncoder().encode(state)
     try data.write(to: stateURL, options: .atomic)
+  }
+
+  private static func failureEvent(for error: Error, filename: String? = nil) -> ProcessingEvent {
+    let recovery: ProcessingEvent.Recovery?
+    switch error {
+    case ImageAutonamerError.ollamaUnavailable:
+      recovery = .installOllama
+    case ImageAutonamerError.modelUnavailable(let model):
+      recovery = .pullModel(model)
+    case let cocoaError as CocoaError
+    where cocoaError.code == .fileReadNoPermission || cocoaError.code == .fileWriteNoPermission:
+      recovery = .reauthorizeFolder
+    default:
+      recovery = nil
+    }
+    let prefix = filename.map { "\($0): " } ?? ""
+    return ProcessingEvent(
+      kind: .failed,
+      message: "\(prefix)\(error.localizedDescription)",
+      recovery: recovery
+    )
   }
 }
 

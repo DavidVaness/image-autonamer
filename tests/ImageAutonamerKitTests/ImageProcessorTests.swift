@@ -11,6 +11,14 @@ private struct StaticNamer: ImageNaming {
   }
 }
 
+private struct FailingNamer: ImageNaming {
+  let error: ImageAutonamerError
+
+  func suggestName(for _: URL) async throws -> String {
+    throw error
+  }
+}
+
 @Test
 func firstScanProtectsExistingImages() async throws {
   let fixture = try Fixture()
@@ -67,6 +75,41 @@ func collisionDoesNotOverwriteExistingFile() async throws {
   )
 }
 
+@Test
+func missingModelOffersARecoveryAction() async throws {
+  let fixture = try Fixture(settleSeconds: 0)
+  defer { fixture.remove() }
+  let processor = fixture.processor(
+    namer: FailingNamer(error: .modelUnavailable("qwen3-vl:4b"))
+  )
+  _ = await processor.scan()
+  let source = fixture.directory.appending(path: "download.png")
+  try Data("image".utf8).write(to: source)
+
+  let events = await processor.scan()
+
+  #expect(events.count == 1)
+  #expect(events[0].kind == .failed)
+  #expect(events[0].recovery == .pullModel("qwen3-vl:4b"))
+  #expect(FileManager.default.fileExists(atPath: source.path))
+}
+
+@Test
+func unavailableOllamaOffersSetupWithoutChangingTheFile() async throws {
+  let fixture = try Fixture(settleSeconds: 0)
+  defer { fixture.remove() }
+  let processor = fixture.processor(namer: FailingNamer(error: .ollamaUnavailable))
+  _ = await processor.scan()
+  let source = fixture.directory.appending(path: "download.png")
+  try Data("image".utf8).write(to: source)
+
+  let events = await processor.scan()
+
+  #expect(events.count == 1)
+  #expect(events[0].recovery == .installOllama)
+  #expect(FileManager.default.fileExists(atPath: source.path))
+}
+
 private struct Fixture: Sendable {
   let root: URL
   let directory: URL
@@ -82,11 +125,13 @@ private struct Fixture: Sendable {
     try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
   }
 
-  func processor() -> ImageProcessor {
+  func processor(namer: any ImageNaming = StaticNamer(name: "Orange Cat on Sofa"))
+    -> ImageProcessor
+  {
     ImageProcessor(
       directory: directory,
       stateURL: stateURL,
-      namer: StaticNamer(name: "Orange Cat on Sofa"),
+      namer: namer,
       settleSeconds: settleSeconds
     )
   }

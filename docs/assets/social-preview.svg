@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640" role="img" aria-labelledby="title desc">
+  <title id="title">Image Autonamer social preview</title>
+  <desc id="desc">A private local vision workflow turns an opaque image filename into a descriptive filename.</desc>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#0f172a"/>
+      <stop offset=".55" stop-color="#312e81"/>
+      <stop offset="1" stop-color="#581c87"/>
+    </linearGradient>
+    <linearGradient id="image" x1="0" y1="0" x2="0" y2="1">
+      <stop stop-color="#f9a8d4"/>
+      <stop offset="1" stop-color="#fdba74"/>
+    </linearGradient>
+  </defs>
+  <rect width="1280" height="640" fill="url(#background)"/>
+  <circle cx="1160" cy="50" r="245" fill="#7c3aed" opacity=".16"/>
+  <circle cx="78" cy="630" r="250" fill="#2563eb" opacity=".14"/>
+  <g transform="translate(84 74)">
+    <rect width="108" height="108" rx="25" fill="#fff"/>
+    <rect x="20" y="23" width="68" height="55" rx="11" fill="#ede9fe" stroke="#7c3aed" stroke-width="5"/>
+    <circle cx="70" cy="40" r="8" fill="#f59e0b"/>
+    <path d="m27 70 19-20 16 17 10-11 14 14" fill="none" stroke="#4f46e5" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="81" cy="81" r="18" fill="#22c55e"/>
+    <path d="m72 81 6 6 13-15" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <text x="220" y="120" fill="#fff" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="48" font-weight="750">Image Autonamer</text>
+  <text x="220" y="164" fill="#c7d2fe" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="24">Useful filenames. Local vision. Zero cloud uploads.</text>
+  <rect x="84" y="235" width="1112" height="286" rx="32" fill="#fff" opacity=".98"/>
+  <g transform="translate(118 270)">
+    <rect width="306" height="216" rx="20" fill="url(#image)"/>
+    <circle cx="235" cy="54" r="31" fill="#fde68a"/>
+    <path d="M0 122 72 48l55 70 45-54 75 76 34-38 25 30v84H0Z" fill="#6366f1"/>
+    <path d="M0 155 76 88l52 75 49-65 67 78 38-42 24 28v54H0Z" fill="#312e81"/>
+    <path d="M0 170c66-19 113-14 157 6 55 25 96 22 149 0v40H0Z" fill="#38bdf8"/>
+  </g>
+  <text x="472" y="322" fill="#64748b" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="18" font-weight="650">BEFORE</text>
+  <rect x="466" y="340" width="425" height="58" rx="14" fill="#f1f5f9"/>
+  <text x="490" y="378" fill="#0f172a" font-family="ui-monospace, SFMono-Regular, monospace" font-size="25" font-weight="650">IMG_8472.PNG</text>
+  <path d="M920 369h90" stroke="#8b5cf6" stroke-width="8" stroke-linecap="round"/>
+  <path d="m990 348 23 21-23 21" fill="none" stroke="#8b5cf6" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="1073" cy="369" r="32" fill="#22c55e"/>
+  <path d="m1058 369 10 10 21-25" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="472" y="442" fill="#059669" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="18" font-weight="650">AFTER</text>
+  <text x="472" y="478" fill="#064e3b" font-family="ui-monospace, SFMono-Regular, monospace" font-size="24" font-weight="650">mountains-sunset-lake-trees.png</text>
+  <text x="84" y="584" fill="#c7d2fe" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="22">Sandboxed macOS menu bar app  •  Ollama  •  MIT licensed</text>
+</svg>
