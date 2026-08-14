@@ -27,7 +27,7 @@
 <p align="center">
   <a href="docs/assets/demo.mp4"><strong>Watch the 60-second demo in HD</strong></a>
   ·
-  <a href="https://github.com/DavidVaness/image-autonamer/releases/latest"><strong>Download v0.2.0</strong></a>
+  <a href="https://github.com/DavidVaness/image-autonamer/releases/latest"><strong>Download v0.3.0</strong></a>
 </p>
 
 ## Install in one command
@@ -41,12 +41,12 @@ curl -fsSL https://raw.githubusercontent.com/DavidVaness/image-autonamer/main/sc
 The installer downloads the checksum-verified app, installs Ollama through Homebrew if needed, pulls `qwen3-vl:4b`, and opens Image Autonamer.
 If you prefer to inspect code before running it, clone the repository and use `./scripts/install-macos-app.sh`.
 
-On first launch, choose Downloads in the macOS folder picker and click **Allow Downloads**.
+On first launch, open the menu bar icon, click **Grant Access**, choose Downloads, and click **Allow Downloads**.
 That one explicit choice creates a persistent security-scoped bookmark inside the app sandbox.
 Full Disk Access is not required.
 
 > [!NOTE]
-> The v0.2.0 binary is ad-hoc signed and supports Apple Silicon.
+> The v0.3.0 binary is ad-hoc signed and supports Apple Silicon.
 > A Developer ID certificate and Apple notarization are the remaining steps for conventional consumer distribution.
 > Intel Macs can build from source.
 
@@ -79,7 +79,7 @@ If a filename already exists, Image Autonamer adds `-2`, `-3`, and so on without
 
 ## Naming modes
 
-Open **Naming Settings…** from the menu bar app to choose one deliberately small preset.
+Open **Configure…** from the Naming status row in the menu bar app to choose one deliberately small preset.
 The preview button analyzes a selected image locally and shows the proposed filename without renaming or moving the file.
 
 | Preset | Example result | Best for |
@@ -91,7 +91,9 @@ The preview button analyzes a selected image locally and shows the proposed file
 Date-prefixed names use the image capture date when metadata provides one, then fall back to the file creation or modification date.
 Business mode can accept a short list of known organization spellings as optional context.
 The model must still report that the exact name or wordmark is visibly supported before deterministic filename assembly includes it.
-There is intentionally no unrestricted custom prompt box.
+An optional Naming context field accepts up to 500 characters of workflow guidance, such as the type of business or image collection.
+The app normalizes that text and instructs the local model to treat it as reference data without overriding visible-evidence rules.
+There is intentionally no unrestricted system-prompt editor.
 
 ## Measured locally
 
@@ -121,6 +123,7 @@ Image Autonamer keeps inference on the Mac and limits automatic filesystem acces
 - Watches new top-level images in Downloads every 15 seconds.
 - Starts automatically through the native macOS login-item API.
 - Uses the App Sandbox with only user-selected read/write and outbound client entitlements.
+- Shows whether Downloads access is granted and keeps recovery one click away.
 - Protects images that existed before first-run setup.
 - Waits for downloads to settle and verifies that a file did not change during analysis.
 - Treats model output as untrusted input and reduces it to a safe lowercase ASCII slug.
@@ -159,7 +162,7 @@ It has no Full Disk Access, no automation entitlement, no telemetry, and no thir
 Image bytes are sent to the configured Ollama endpoint, which is hard-coded by default to `http://127.0.0.1:11434`.
 The sandbox entitlement technically permits outbound client connections because macOS does not offer a localhost-only network entitlement.
 The shipped code uses no remote endpoint.
-Optional organization vocabulary is included only in requests to that same local endpoint and is stored in the app's private preferences.
+Optional organization vocabulary and naming context are included only in requests to that same local endpoint and are stored in the app's private preferences.
 
 Filesystem handling is defensive:
 
@@ -179,6 +182,7 @@ Filesystem handling is defensive:
 | Local Ollama inference | Hosted vision API | Privacy and offline operation matter more here than model startup time and disk usage. |
 | JSON schema plus sanitizer | Free-form model text | Model output remains untrusted even when structured generation succeeds. |
 | Three presets plus deterministic composition | Raw custom prompts | Common workflows stay predictable, testable, and resistant to prompt mistakes while the tool remains focused. |
+| Bounded reference context | An unrestricted system-prompt editor | Users can add domain vocabulary without weakening visible-evidence rules or turning the app into a prompt workbench. |
 | Visible-evidence gate for brands | Guessing organizations from visual style | A missed brand is less harmful than a confidently wrong business filename. |
 | Hard link, then unlink | `moveItem` after an existence check | Claiming the destination atomically removes the check-then-write race that could overwrite a file. |
 | Ad-hoc signed release artifact | Unsigned bundle or premature App Store packaging | The artifact is reproducible and sandboxed today, while notarization remains an explicit production-distribution follow-up. |
@@ -220,7 +224,7 @@ swift test
 PYTHONPATH=src python3 -m unittest discover -s tests -v
 
 # Release app and checksum manifest
-./scripts/package-release.sh 0.2.0
+./scripts/package-release.sh 0.3.0
 
 # Rebuild the 60-second MP4 and GIF from original SVG sources
 ./scripts/build-demo.sh
@@ -260,7 +264,7 @@ ollama pull qwen3-vl:4b
 
 ### Folder access was cancelled
 
-Open the menu bar icon and choose **Choose Downloads…** or **Reauthorize Downloads…**.
+Open the menu bar icon and choose **Grant Access** or **Reauthorize…** in the Downloads Access row.
 Select Downloads and click **Allow Downloads**.
 There is no `+` button to find in System Settings.
 

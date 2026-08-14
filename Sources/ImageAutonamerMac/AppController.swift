@@ -19,6 +19,7 @@ final class AppController: ObservableObject {
   @Published private(set) var recovery: ProcessingEvent.Recovery?
   @Published private(set) var namingStyle: NamingStyle = .descriptive
   @Published private(set) var organizationVocabulary = ""
+  @Published private(set) var namingContext = ""
   @Published private(set) var isPreviewing = false
   @Published private(set) var previewResult: String?
   @Published private(set) var previewError: String?
@@ -32,6 +33,7 @@ final class AppController: ObservableObject {
   private static let bookmarkKey = "downloadsSecurityScopedBookmark"
   private static let namingStyleKey = "namingStyle"
   private static let organizationVocabularyKey = "organizationVocabulary"
+  private static let namingContextKey = "namingContext"
 
   init() {
     defaultDownloadsURL = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask)[0]
@@ -42,6 +44,7 @@ final class AppController: ObservableObject {
     }
     organizationVocabulary =
       UserDefaults.standard.string(forKey: Self.organizationVocabularyKey) ?? ""
+    namingContext = UserDefaults.standard.string(forKey: Self.namingContextKey) ?? ""
     let loginService = SMAppService.mainApp
     launchAtLogin = loginService.status == .enabled
     if loginService.status == .notRegistered || loginService.status == .notFound {
@@ -54,9 +57,6 @@ final class AppController: ObservableObject {
     }
     if !restoreFolderAccess() {
       activity = "Choose Downloads to start."
-      Task { @MainActor [weak self] in
-        self?.chooseDownloads()
-      }
     }
   }
 
@@ -79,6 +79,9 @@ final class AppController: ObservableObject {
       }
       recentEvents = Array((events + recentEvents).prefix(8))
       if let failure = events.first(where: { $0.kind == .failed }) {
+        if failure.recovery == .reauthorizeFolder {
+          invalidateFolderAccess()
+        }
         activity = failure.message
         recovery = failure.recovery
       } else if let rename = events.first(where: { $0.kind == .renamed }) {
@@ -133,20 +136,31 @@ final class AppController: ObservableObject {
     }
   }
 
-  func saveNamingSettings(style: NamingStyle, organizationVocabulary: String) {
+  func saveNamingSettings(
+    style: NamingStyle,
+    organizationVocabulary: String,
+    namingContext: String
+  ) {
     let organizations = Self.organizations(from: organizationVocabulary)
+    let context = NamingConfiguration.cleanContext(namingContext)
     namingStyle = style
     self.organizationVocabulary = organizations.joined(separator: ", ")
+    self.namingContext = context
     UserDefaults.standard.set(style.rawValue, forKey: Self.namingStyleKey)
     UserDefaults.standard.set(
       self.organizationVocabulary,
       forKey: Self.organizationVocabularyKey
     )
+    UserDefaults.standard.set(context, forKey: Self.namingContextKey)
     rebuildProcessor()
     activity = "Using \(style.title.lowercased()) names."
   }
 
-  func previewImage(style: NamingStyle, organizationVocabulary: String) {
+  func previewImage(
+    style: NamingStyle,
+    organizationVocabulary: String,
+    namingContext: String
+  ) {
     NSApplication.shared.setActivationPolicy(.regular)
     NSApplication.shared.activate(ignoringOtherApps: true)
     defer {
@@ -165,7 +179,8 @@ final class AppController: ObservableObject {
     guard panel.runModal() == .OK, let imageURL = panel.url else { return }
     let configuration = NamingConfiguration(
       style: style,
-      knownOrganizations: Self.organizations(from: organizationVocabulary)
+      knownOrganizations: Self.organizations(from: organizationVocabulary),
+      analysisContext: namingContext
     )
     isPreviewing = true
     previewResult = nil
@@ -235,8 +250,8 @@ final class AppController: ObservableObject {
         includingResourceValuesForKeys: nil,
         relativeTo: nil
       )
-      UserDefaults.standard.set(bookmark, forKey: Self.bookmarkKey)
       try activateFolder(selectedURL)
+      UserDefaults.standard.set(bookmark, forKey: Self.bookmarkKey)
     } catch {
       activity = "Could not save folder access: \(error.localizedDescription)"
     }
@@ -285,11 +300,12 @@ final class AppController: ObservableObject {
   }
 
   private func activateFolder(_ url: URL) throws {
-    securityScopedURL?.stopAccessingSecurityScopedResource()
     guard url.startAccessingSecurityScopedResource() else {
       throw CocoaError(.fileReadNoPermission)
     }
+    let previousURL = securityScopedURL
     securityScopedURL = url
+    previousURL?.stopAccessingSecurityScopedResource()
     downloadsURL = url
     let applicationSupport = FileManager.default.urls(
       for: .applicationSupportDirectory,
@@ -315,10 +331,22 @@ final class AppController: ObservableObject {
       == defaultDownloadsURL.resolvingSymlinksInPath().standardizedFileURL
   }
 
+  private func invalidateFolderAccess() {
+    timer?.invalidate()
+    timer = nil
+    securityScopedURL?.stopAccessingSecurityScopedResource()
+    securityScopedURL = nil
+    downloadsURL = nil
+    processor = nil
+    hasFolderAccess = false
+    UserDefaults.standard.removeObject(forKey: Self.bookmarkKey)
+  }
+
   private var currentNamingConfiguration: NamingConfiguration {
     NamingConfiguration(
       style: namingStyle,
-      knownOrganizations: Self.organizations(from: organizationVocabulary)
+      knownOrganizations: Self.organizations(from: organizationVocabulary),
+      analysisContext: namingContext
     )
   }
 

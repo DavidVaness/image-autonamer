@@ -52,11 +52,57 @@ private struct MenuContent: View {
         Divider()
       }
 
-      if let recovery = controller.recovery {
+      if let recovery = controller.recovery, recovery != .reauthorizeFolder {
         Button(recoveryLabel(for: recovery)) {
           controller.performRecovery()
         }
         .buttonStyle(.borderedProminent)
+      }
+
+      GroupBox {
+        HStack(spacing: 10) {
+          Image(
+            systemName: controller.hasFolderAccess
+              ? "checkmark.circle.fill" : "xmark.circle.fill"
+          )
+          .foregroundStyle(controller.hasFolderAccess ? .green : .red)
+          VStack(alignment: .leading, spacing: 2) {
+            Text("Downloads Access")
+              .font(.callout.weight(.semibold))
+            Text(controller.hasFolderAccess ? "Granted" : "Required for automatic renaming")
+              .font(.caption)
+              .foregroundStyle(.secondary)
+          }
+          Spacer()
+          if controller.hasFolderAccess {
+            Button("Reauthorize…") {
+              controller.chooseDownloads()
+            }
+          } else {
+            Button("Grant Access") {
+              controller.chooseDownloads()
+            }
+            .buttonStyle(.borderedProminent)
+          }
+        }
+      }
+
+      GroupBox {
+        HStack(spacing: 10) {
+          Image(systemName: "textformat")
+            .foregroundStyle(.purple)
+          VStack(alignment: .leading, spacing: 2) {
+            Text("Naming")
+              .font(.callout.weight(.semibold))
+            Text(controller.namingStyle.title)
+              .font(.caption)
+              .foregroundStyle(.secondary)
+          }
+          Spacer()
+          Button("Configure…") {
+            showNamingSettings = true
+          }
+        }
       }
 
       Toggle(
@@ -77,14 +123,6 @@ private struct MenuContent: View {
           controller.openDownloads()
         }
         .disabled(!controller.hasFolderAccess)
-      }
-
-      Button(controller.hasFolderAccess ? "Reauthorize Downloads…" : "Choose Downloads…") {
-        controller.chooseDownloads()
-      }
-
-      Button("Naming Settings…") {
-        showNamingSettings = true
       }
 
       Button("Process Existing Images…") {
@@ -144,11 +182,13 @@ private struct NamingSettingsView: View {
   @Environment(\.dismiss) private var dismiss
   @State private var style: NamingStyle
   @State private var organizationVocabulary: String
+  @State private var namingContext: String
 
   init(controller: AppController) {
     self.controller = controller
     _style = State(initialValue: controller.namingStyle)
     _organizationVocabulary = State(initialValue: controller.organizationVocabulary)
+    _namingContext = State(initialValue: controller.namingContext)
   }
 
   var body: some View {
@@ -185,13 +225,40 @@ private struct NamingSettingsView: View {
         }
       }
 
+      VStack(alignment: .leading, spacing: 6) {
+        HStack {
+          Text("Naming context")
+            .font(.headline)
+          Spacer()
+          Text("\(namingContext.count)/500")
+            .font(.caption.monospacedDigit())
+            .foregroundStyle(.secondary)
+        }
+        TextEditor(text: $namingContext)
+          .font(.body)
+          .frame(height: 68)
+          .padding(5)
+          .background(.background)
+          .clipShape(RoundedRectangle(cornerRadius: 6))
+          .overlay {
+            RoundedRectangle(cornerRadius: 6)
+              .stroke(.quaternary)
+          }
+        Text(
+          "Optional guidance, for example: Product screenshots for a pottery shop. Stored locally and sent only to Ollama."
+        )
+        .font(.caption)
+        .foregroundStyle(.secondary)
+      }
+
       GroupBox {
         VStack(alignment: .leading, spacing: 8) {
           HStack {
             Button("Preview with Image…") {
               controller.previewImage(
                 style: style,
-                organizationVocabulary: organizationVocabulary
+                organizationVocabulary: organizationVocabulary,
+                namingContext: namingContext
               )
             }
             .disabled(controller.isPreviewing)
@@ -236,7 +303,8 @@ private struct NamingSettingsView: View {
         Button("Save") {
           controller.saveNamingSettings(
             style: style,
-            organizationVocabulary: organizationVocabulary
+            organizationVocabulary: organizationVocabulary,
+            namingContext: namingContext
           )
           dismiss()
         }
@@ -244,11 +312,17 @@ private struct NamingSettingsView: View {
       }
     }
     .padding(22)
-    .frame(width: 500, height: style == .businessDocument ? 440 : 370)
+    .frame(width: 500, height: style == .businessDocument ? 560 : 490)
     .onChange(of: style) { _ in
       controller.clearPreview()
     }
     .onChange(of: organizationVocabulary) { _ in
+      controller.clearPreview()
+    }
+    .onChange(of: namingContext) { value in
+      if value.count > 500 {
+        namingContext = String(value.prefix(500))
+      }
       controller.clearPreview()
     }
     .onDisappear {

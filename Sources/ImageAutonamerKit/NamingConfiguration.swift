@@ -29,13 +29,33 @@ public enum NamingStyle: String, CaseIterable, Codable, Sendable {
 public struct NamingConfiguration: Codable, Equatable, Sendable {
   public var style: NamingStyle
   public var knownOrganizations: [String]
+  public var analysisContext: String
 
   public init(
     style: NamingStyle = .descriptive,
-    knownOrganizations: [String] = []
+    knownOrganizations: [String] = [],
+    analysisContext: String = ""
   ) {
     self.style = style
     self.knownOrganizations = Self.cleanOrganizations(knownOrganizations)
+    self.analysisContext = Self.cleanContext(analysisContext)
+  }
+
+  public init(from decoder: any Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    style = try container.decodeIfPresent(NamingStyle.self, forKey: .style) ?? .descriptive
+    knownOrganizations = Self.cleanOrganizations(
+      try container.decodeIfPresent([String].self, forKey: .knownOrganizations) ?? []
+    )
+    analysisContext = Self.cleanContext(
+      try container.decodeIfPresent(String.self, forKey: .analysisContext) ?? ""
+    )
+  }
+
+  private enum CodingKeys: String, CodingKey {
+    case style
+    case knownOrganizations
+    case analysisContext
   }
 
   public static func cleanOrganizations(_ values: [String]) -> [String] {
@@ -54,6 +74,14 @@ public struct NamingConfiguration: Codable, Equatable, Sendable {
     }
     .prefix(20)
     .map { $0 }
+  }
+
+  public static func cleanContext(_ value: String) -> String {
+    let normalized = value.components(separatedBy: .whitespacesAndNewlines)
+      .filter { !$0.isEmpty }
+      .joined(separator: " ")
+    return String(normalized.prefix(500))
+      .trimmingCharacters(in: .whitespacesAndNewlines)
   }
 }
 
