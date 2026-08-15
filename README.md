@@ -41,7 +41,8 @@ curl -fsSL https://raw.githubusercontent.com/DavidVaness/image-autonamer/main/sc
 The installer downloads the checksum-verified app, installs Ollama through Homebrew if needed, pulls `qwen3-vl:4b`, and opens Image Autonamer.
 If you prefer to inspect code before running it, clone the repository and use `./scripts/install-macos-app.sh`.
 
-On first launch, open the menu bar icon, click **Grant Access**, choose Downloads, and click **Allow Downloads**.
+On first launch, the Settings window opens automatically.
+Click **Grant Access**, choose Downloads, and click **Allow Downloads**.
 That one explicit choice creates a persistent security-scoped bookmark inside the app sandbox.
 Full Disk Access is not required.
 
@@ -79,7 +80,8 @@ If a filename already exists, Image Autonamer adds `-2`, `-3`, and so on without
 
 ## Naming modes
 
-Open **Configure…** from the Naming status row in the menu bar app to choose one deliberately small preset.
+Open Image Autonamer from Finder, Spotlight, or your app switcher to show Settings, then choose the **Naming** tab.
+You can also select **Configure…** from the Naming status row in the menu bar app.
 The preview button analyzes a selected image locally and shows the proposed filename without renaming or moving the file.
 
 | Preset | Example result | Best for |
@@ -264,14 +266,14 @@ ollama pull qwen3-vl:4b
 
 ### Folder access was cancelled
 
-Open the menu bar icon and choose **Grant Access** or **Reauthorize…** in the Downloads Access row.
+Open Image Autonamer and choose **Grant Access** or **Reauthorize…** in General Settings.
 Select Downloads and click **Allow Downloads**.
 There is no `+` button to find in System Settings.
 
 ### The menu bar icon is hidden
 
 macOS may place extra status items behind Control Center when menu bar space is limited.
-Open Control Center or temporarily quit another menu bar utility.
+Open Image Autonamer from Finder, Spotlight, or your app switcher to use the full Settings window without the menu bar icon.
 
 ### The build uses the wrong Swift toolchain
 
