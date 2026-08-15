@@ -3,7 +3,7 @@ set -eu
 
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 PROJECT_DIR=$(dirname "$SCRIPT_DIR")
-VERSION=${1:-0.4.0}
+VERSION=${1:-0.5.0}
 ARCH=$(uname -m)
 ARCHIVE_NAME="Image-Autonamer-macOS-$ARCH.zip"
 DIST_DIR="$PROJECT_DIR/dist"

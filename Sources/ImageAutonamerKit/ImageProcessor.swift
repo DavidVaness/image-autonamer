@@ -3,7 +3,10 @@ import Foundation
 public struct ProcessingEvent: Sendable, Equatable {
   public enum Kind: Sendable, Equatable {
     case baseline
+    case queued
     case renamed
+    case rejected
+    case undone
     case skipped
     case failed
   }
@@ -25,6 +28,38 @@ public struct ProcessingEvent: Sendable, Equatable {
   }
 }
 
+public struct ReviewItem: Codable, Identifiable, Sendable, Equatable {
+  public let id: UUID
+  public let sourcePath: String
+  public let proposedStem: String
+  public let evidence: [String]
+  public let createdAt: Date
+  let sourceFingerprint: FileFingerprint
+
+  public var sourceURL: URL { URL(fileURLWithPath: sourcePath) }
+  public var originalFilename: String { sourceURL.lastPathComponent }
+  public var proposedFilename: String {
+    "\(proposedStem).\(sourceURL.pathExtension.lowercased())"
+  }
+}
+
+public struct RenameRecord: Codable, Identifiable, Sendable, Equatable {
+  public let id: UUID
+  public let originalPath: String
+  public let renamedPath: String
+  public let renamedAt: Date
+  public var undoneAt: Date?
+
+  public var originalFilename: String { URL(fileURLWithPath: originalPath).lastPathComponent }
+  public var renamedFilename: String { URL(fileURLWithPath: renamedPath).lastPathComponent }
+  public var canUndo: Bool { undoneAt == nil }
+}
+
+public struct ReviewSnapshot: Sendable, Equatable {
+  public let pending: [ReviewItem]
+  public let history: [RenameRecord]
+}
+
 public actor ImageProcessor {
   private static let supportedExtensions = Set([
     "avif", "bmp", "gif", "heic", "heif", "jpeg", "jpg", "png", "tif", "tiff", "webp",
@@ -34,6 +69,7 @@ public actor ImageProcessor {
   private let stateURL: URL
   private let namer: any ImageNaming
   private let settleSeconds: TimeInterval
+  private let reviewBeforeRenaming: Bool
   private var state: ProcessingState
   private var isScanning = false
 
@@ -41,13 +77,102 @@ public actor ImageProcessor {
     directory: URL,
     stateURL: URL,
     namer: any ImageNaming,
+    reviewBeforeRenaming: Bool = false,
     settleSeconds: TimeInterval = 15
   ) {
     self.directory = directory
     self.stateURL = stateURL
     self.namer = namer
+    self.reviewBeforeRenaming = reviewBeforeRenaming
     self.settleSeconds = settleSeconds
     state = Self.loadState(from: stateURL)
+  }
+
+  public func reviewSnapshot() -> ReviewSnapshot {
+    ReviewSnapshot(
+      pending: state.pending.sorted { $0.createdAt < $1.createdAt },
+      history: state.history.sorted { $0.renamedAt > $1.renamedAt }
+    )
+  }
+
+  public func approveReview(id: UUID, editedStem: String? = nil) throws -> ProcessingEvent {
+    guard let index = state.pending.firstIndex(where: { $0.id == id }) else {
+      throw ImageAutonamerError.reviewItemUnavailable
+    }
+    let item = state.pending[index]
+    guard FileManager.default.fileExists(atPath: item.sourcePath) else {
+      state.pending.remove(at: index)
+      state.files.removeValue(forKey: item.sourcePath)
+      try saveState()
+      throw ImageAutonamerError.reviewSourceMissing
+    }
+    guard try fingerprint(for: item.sourceURL) == item.sourceFingerprint else {
+      state.pending.remove(at: index)
+      state.files.removeValue(forKey: item.sourcePath)
+      try saveState()
+      throw ImageAutonamerError.changedDuringAnalysis
+    }
+    let stem = try FilenameSanitizer.slugify(editedStem ?? item.proposedStem)
+    let event = try rename(
+      source: item.sourceURL,
+      stem: stem,
+      originalFingerprint: item.sourceFingerprint
+    )
+    state.pending.remove(at: index)
+    try saveState()
+    return event
+  }
+
+  public func approveAllReviews(editedStems: [UUID: String] = [:]) -> [ProcessingEvent] {
+    let ids = state.pending.map(\.id)
+    return ids.map { id in
+      do {
+        return try approveReview(id: id, editedStem: editedStems[id])
+      } catch {
+        return Self.failureEvent(for: error)
+      }
+    }
+  }
+
+  public func rejectReview(id: UUID) throws -> ProcessingEvent {
+    guard let index = state.pending.firstIndex(where: { $0.id == id }) else {
+      throw ImageAutonamerError.reviewItemUnavailable
+    }
+    let item = state.pending.remove(at: index)
+    try saveState()
+    return ProcessingEvent(kind: .rejected, message: "Kept \(item.originalFilename) unchanged.")
+  }
+
+  public func undoRename(id: UUID) throws -> ProcessingEvent {
+    guard let index = state.history.firstIndex(where: { $0.id == id }),
+      state.history[index].undoneAt == nil
+    else {
+      throw ImageAutonamerError.reviewItemUnavailable
+    }
+    let record = state.history[index]
+    let renamedURL = URL(fileURLWithPath: record.renamedPath)
+    let originalURL = URL(fileURLWithPath: record.originalPath)
+    guard FileManager.default.fileExists(atPath: renamedURL.path) else {
+      throw ImageAutonamerError.reviewSourceMissing
+    }
+    guard !FileManager.default.fileExists(atPath: originalURL.path) else {
+      throw ImageAutonamerError.undoDestinationExists(originalURL.lastPathComponent)
+    }
+    try FileManager.default.linkItem(at: renamedURL, to: originalURL)
+    do {
+      try FileManager.default.removeItem(at: renamedURL)
+    } catch {
+      try? FileManager.default.removeItem(at: originalURL)
+      throw error
+    }
+    state.files.removeValue(forKey: renamedURL.path)
+    state.files[originalURL.path] = try fingerprint(for: originalURL)
+    state.history[index].undoneAt = Date()
+    try saveState()
+    return ProcessingEvent(
+      kind: .undone,
+      message: "Restored \(originalURL.lastPathComponent)."
+    )
   }
 
   public func scan(force: Bool = false) async -> [ProcessingEvent] {
@@ -97,12 +222,36 @@ public actor ImageProcessor {
       return nil
     }
 
-    let suggestion = try await namer.suggestName(for: source)
-    let stem = try FilenameSanitizer.slugify(suggestion)
+    let suggestion = try await namer.suggest(for: source)
+    let stem = try FilenameSanitizer.slugify(suggestion.name)
     guard try fingerprint(for: source) == originalFingerprint else {
       throw ImageAutonamerError.changedDuringAnalysis
     }
 
+    if reviewBeforeRenaming {
+      let item = ReviewItem(
+        id: UUID(),
+        sourcePath: source.path,
+        proposedStem: stem,
+        evidence: suggestion.evidence,
+        createdAt: Date(),
+        sourceFingerprint: originalFingerprint
+      )
+      state.pending.removeAll { $0.sourcePath == source.path }
+      state.pending.append(item)
+      state.files[source.path] = originalFingerprint
+      try saveState()
+      return ProcessingEvent(kind: .queued, message: "Review \(item.proposedFilename).")
+    }
+
+    return try rename(source: source, stem: stem, originalFingerprint: originalFingerprint)
+  }
+
+  private func rename(
+    source: URL,
+    stem: String,
+    originalFingerprint: FileFingerprint
+  ) throws -> ProcessingEvent {
     var destination = uniqueDestination(for: source, stem: stem)
     if destination.standardizedFileURL == source.standardizedFileURL {
       state.files[source.path] = originalFingerprint
@@ -119,8 +268,25 @@ public actor ImageProcessor {
         destination = uniqueDestination(for: source, stem: stem)
       }
     }
-    try FileManager.default.removeItem(at: source)
+    do {
+      try FileManager.default.removeItem(at: source)
+    } catch {
+      try? FileManager.default.removeItem(at: destination)
+      throw error
+    }
+    state.files.removeValue(forKey: source.path)
     state.files[destination.path] = try fingerprint(for: destination)
+    state.history.insert(
+      RenameRecord(
+        id: UUID(),
+        originalPath: source.path,
+        renamedPath: destination.path,
+        renamedAt: Date(),
+        undoneAt: nil
+      ),
+      at: 0
+    )
+    state.history = Array(state.history.prefix(100))
     try saveState()
     return ProcessingEvent(
       kind: .renamed,
@@ -210,7 +376,7 @@ public actor ImageProcessor {
   }
 }
 
-private struct FileFingerprint: Codable, Equatable, Sendable {
+struct FileFingerprint: Codable, Equatable, Sendable {
   let size: Int64
   let modifiedAt: Date
 }
@@ -218,4 +384,16 @@ private struct FileFingerprint: Codable, Equatable, Sendable {
 private struct ProcessingState: Codable, Sendable {
   var didBaseline = false
   var files: [String: FileFingerprint] = [:]
+  var pending: [ReviewItem] = []
+  var history: [RenameRecord] = []
+
+  init() {}
+
+  init(from decoder: any Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    didBaseline = try container.decodeIfPresent(Bool.self, forKey: .didBaseline) ?? false
+    files = try container.decodeIfPresent([String: FileFingerprint].self, forKey: .files) ?? [:]
+    pending = try container.decodeIfPresent([ReviewItem].self, forKey: .pending) ?? []
+    history = try container.decodeIfPresent([RenameRecord].self, forKey: .history) ?? []
+  }
 }

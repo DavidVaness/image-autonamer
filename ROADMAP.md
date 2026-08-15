@@ -3,6 +3,13 @@
 Image Autonamer intentionally remains a focused utility.
 Its product promise is simple: a new image arrives in Downloads and receives a useful filename without leaving the Mac.
 
+## Recently shipped
+
+- Dynamic document-type detection and type-specific filename recipes in v0.4.0.
+- Visible correspondent, date, period, and safe reference extraction for documents in v0.4.0.
+- Opt-in Review Inbox with editable suggestions, visible evidence, bulk approval, and keep-original handling in v0.5.0.
+- Bounded rename history and collision-safe undo for both automatic and approved renames in v0.5.0.
+
 ## Now
 
 - Improve naming quality through a reproducible, redistributable evaluation corpus.

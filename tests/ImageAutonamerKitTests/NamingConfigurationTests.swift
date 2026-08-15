@@ -227,3 +227,34 @@ func documentPromptRequiresDynamicCorrespondentAndKnownTypes() {
   #expect(prompt.contains("Do not use a due date"))
   #expect(prompt.contains("Never return bank account"))
 }
+
+@Test
+func documentEvidenceExplainsOnlyFieldsUsedByTheRecipe() {
+  let analysis = ImageNamingAnalysis(
+    description: "annual software renewal",
+    organization: "Northwind Labs",
+    organizationVisible: true,
+    documentType: "invoice",
+    documentDate: "2026-08-01",
+    documentDateVisible: true,
+    documentReference: "INV-1042",
+    documentReferenceVisible: true,
+    documentPeriod: "2026-07",
+    documentPeriodVisible: true
+  )
+
+  let evidence = OllamaClient.evidence(
+    for: analysis,
+    configuration: NamingConfiguration(style: .documents)
+  )
+
+  #expect(
+    evidence == [
+      "Type: Invoice",
+      "Correspondent: Northwind Labs",
+      "Date: 2026-08-01",
+      "Reference: INV-1042",
+      "Subject: annual software renewal",
+    ]
+  )
+}

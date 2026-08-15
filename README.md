@@ -27,7 +27,7 @@
 <p align="center">
   <a href="docs/assets/demo.mp4"><strong>Watch the 60-second demo in HD</strong></a>
   ·
-  <a href="https://github.com/DavidVaness/image-autonamer/releases/latest"><strong>Download v0.4.0</strong></a>
+  <a href="https://github.com/DavidVaness/image-autonamer/releases/latest"><strong>Download v0.5.0</strong></a>
 </p>
 
 ## Install in one command
@@ -47,7 +47,7 @@ That one explicit choice creates a persistent security-scoped bookmark inside th
 Full Disk Access is not required.
 
 > [!NOTE]
-> The v0.4.0 binary is ad-hoc signed and supports Apple Silicon.
+> The v0.5.0 binary is ad-hoc signed and supports Apple Silicon.
 > A Developer ID certificate and Apple notarization are the remaining steps for conventional consumer distribution.
 > Intel Macs can build from source.
 
@@ -99,6 +99,16 @@ An optional Naming context field accepts up to 500 characters of workflow guidan
 The app normalizes that text and instructs the local model to treat it as reference data without overriding visible-evidence rules.
 There is intentionally no unrestricted system-prompt editor.
 
+## Review Inbox
+
+Enable **Review suggestions before renaming** in General Settings when you want approval instead of immediate automation.
+New suggestions then wait in Review Inbox with an image preview, the original filename, an editable proposed filename, and the visible evidence used to produce it.
+Approve one suggestion, keep the original name, or approve the whole queue after reviewing edits.
+
+Every completed rename appears in History, including renames performed automatically.
+Undo restores the original filename only when that path is free, so it never overwrites a newer file.
+The pending queue and the latest 100 rename records survive app restarts in the same atomic state file as scan fingerprints.
+
 ## Measured locally
 
 The repository includes eight original, MIT-licensed evaluation images across illustrations, screenshots, objects, documents, diagrams, interfaces, and indoor and outdoor scenes.
@@ -132,6 +142,8 @@ Image Autonamer keeps inference on the Mac and limits automatic filesystem acces
 - Waits for downloads to settle and verifies that a file did not change during analysis.
 - Treats model output as untrusted input and reduces it to a safe lowercase ASCII slug.
 - Offers three focused naming modes, dynamic document recipes, and a no-rename preview instead of an open-ended prompt surface.
+- Offers an opt-in Review Inbox with editable suggestions, visible evidence, bulk approval, and rename history.
+- Makes automatic and approved renames reversible without overwriting files created later.
 - Uses collision-safe filesystem operations that never overwrite another file.
 - Includes a standalone Python CLI for dry runs, one-off images, recursive batches, and Linux.
 
@@ -148,8 +160,14 @@ flowchart LR
     D --> E["Local Ollama VLM"]
     E --> F["Structured visible facts"]
     F --> G["Deterministic name composer and sanitizer"]
-    G --> H["Hard-link-first safe rename"]
-    H --> I["Atomic state file"]
+    G --> H{"Review enabled?"}
+    H -->|Yes| I["Persisted Review Inbox"]
+    I --> J["Approve or keep original"]
+    H -->|No| K["Automatic approval"]
+    J --> L["Hard-link-first safe rename"]
+    K --> L
+    L --> M["History and collision-safe undo"]
+    M --> N["Atomic state file"]
 ```
 
 `ImageProcessor` is a Swift actor, so scans cannot mutate state concurrently.
@@ -175,6 +193,7 @@ Filesystem handling is defensive:
 - A second fingerprint check rejects files modified during model inference.
 - A hard-link-first operation claims the destination atomically before removing the source name.
 - Destination collisions select a numbered suffix instead of overwriting.
+- Undo refuses to run when the original path has been reused, preserving both files.
 - Processing state is written atomically inside the sandbox container.
 
 ## Engineering decisions
@@ -189,6 +208,9 @@ Filesystem handling is defensive:
 | Bounded reference context | An unrestricted system-prompt editor | Users can add domain vocabulary without weakening visible-evidence rules or turning the app into a prompt workbench. |
 | Dynamic visible correspondents | A manually maintained company list | Each document can name its actual issuer while the visible-evidence gate prevents unsupported brand guesses. |
 | Type-specific document recipes | One generic business filename | Invoices, receipts, statements, and other documents include only metadata that is useful for that type. |
+| One persisted review pipeline | A separate manual renamer | Automatic and reviewed operation share the same sanitizer, collision handling, state, history, and recovery behavior. |
+| Opt-in review for existing users | Changing automation after an update | Existing behavior remains stable while users who want control can enable review explicitly. |
+| Bounded local history | An unlimited activity database | The latest 100 renames provide practical recovery without turning a small utility into a document-management system. |
 | Hard link, then unlink | `moveItem` after an existence check | Claiming the destination atomically removes the check-then-write race that could overwrite a file. |
 | Ad-hoc signed release artifact | Unsigned bundle or premature App Store packaging | The artifact is reproducible and sandboxed today, while notarization remains an explicit production-distribution follow-up. |
 
@@ -229,7 +251,7 @@ swift test
 PYTHONPATH=src python3 -m unittest discover -s tests -v
 
 # Release app and checksum manifest
-./scripts/package-release.sh 0.4.0
+./scripts/package-release.sh 0.5.0
 
 # Rebuild the 60-second MP4 and GIF from original SVG sources
 ./scripts/build-demo.sh
@@ -238,7 +260,7 @@ PYTHONPATH=src python3 -m unittest discover -s tests -v
 ./scripts/build-brand-assets.py
 ```
 
-Native tests cover sanitization, first-run protection, safe renaming, and collision handling.
+Native tests cover sanitization, first-run protection, review queuing, edited approval, rejection, safe renaming, collision handling, history, and undo.
 Python tests additionally cover the CLI, state database, file settling, discovery, and Ollama request/response contract.
 CI intentionally mocks Ollama because downloading a multi-gigabyte model on every run would make the suite slow and wasteful.
 

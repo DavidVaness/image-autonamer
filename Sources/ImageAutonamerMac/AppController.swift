@@ -19,6 +19,11 @@ final class AppController: ObservableObject {
   @Published private(set) var recovery: ProcessingEvent.Recovery?
   @Published private(set) var namingStyle: NamingStyle = .descriptive
   @Published private(set) var namingContext = ""
+  @Published private(set) var reviewBeforeRenaming = false
+  @Published private(set) var pendingReviews: [ReviewItem] = []
+  @Published private(set) var renameHistory: [RenameRecord] = []
+  @Published private(set) var isApplyingReviews = false
+  @Published private(set) var reviewError: String?
   @Published private(set) var isPreviewing = false
   @Published private(set) var previewResult: String?
   @Published private(set) var previewError: String?
@@ -32,6 +37,7 @@ final class AppController: ObservableObject {
   private static let bookmarkKey = "downloadsSecurityScopedBookmark"
   private static let namingStyleKey = "namingStyle"
   private static let namingContextKey = "namingContext"
+  private static let reviewBeforeRenamingKey = "reviewBeforeRenaming"
 
   init() {
     defaultDownloadsURL = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask)[0]
@@ -41,6 +47,7 @@ final class AppController: ObservableObject {
         ? .documents : NamingStyle(rawValue: rawStyle) ?? .descriptive
     }
     namingContext = UserDefaults.standard.string(forKey: Self.namingContextKey) ?? ""
+    reviewBeforeRenaming = UserDefaults.standard.bool(forKey: Self.reviewBeforeRenamingKey)
     let loginService = SMAppService.mainApp
     launchAtLogin = loginService.status == .enabled
     if loginService.status == .notRegistered || loginService.status == .notFound {
@@ -74,6 +81,9 @@ final class AppController: ObservableObject {
         }
       }
       recentEvents = Array((events + recentEvents).prefix(8))
+      let snapshot = await processor.reviewSnapshot()
+      pendingReviews = snapshot.pending
+      renameHistory = snapshot.history
       if let failure = events.first(where: { $0.kind == .failed }) {
         if failure.recovery == .reauthorizeFolder {
           invalidateFolderAccess()
@@ -83,6 +93,9 @@ final class AppController: ObservableObject {
       } else if let rename = events.first(where: { $0.kind == .renamed }) {
         activity = rename.message
         recovery = nil
+      } else if events.contains(where: { $0.kind == .queued }) {
+        activity = "\(snapshot.pending.count) suggestion(s) ready for review."
+        recovery = nil
       } else if let baseline = events.first(where: { $0.kind == .baseline }) {
         activity = baseline.message
         recovery = nil
@@ -91,6 +104,63 @@ final class AppController: ObservableObject {
       }
       isScanning = false
     }
+  }
+
+  func setReviewBeforeRenaming(_ enabled: Bool) {
+    reviewBeforeRenaming = enabled
+    UserDefaults.standard.set(enabled, forKey: Self.reviewBeforeRenamingKey)
+    rebuildProcessor()
+    activity = enabled ? "New suggestions will wait for review." : "Automatic renaming enabled."
+  }
+
+  func refreshReviews() {
+    guard let processor else {
+      pendingReviews = []
+      renameHistory = []
+      return
+    }
+    Task {
+      let snapshot = await processor.reviewSnapshot()
+      pendingReviews = snapshot.pending
+      renameHistory = snapshot.history
+    }
+  }
+
+  func clearReviewError() {
+    reviewError = nil
+  }
+
+  func approveReview(id: UUID, editedStem: String) {
+    performReviewAction { processor in
+      [try await processor.approveReview(id: id, editedStem: editedStem)]
+    }
+  }
+
+  func approveAllReviews(editedStems: [UUID: String]) {
+    performReviewAction { processor in
+      await processor.approveAllReviews(editedStems: editedStems)
+    }
+  }
+
+  func rejectReview(id: UUID) {
+    performReviewAction { processor in
+      [try await processor.rejectReview(id: id)]
+    }
+  }
+
+  func undoRename(id: UUID) {
+    performReviewAction { processor in
+      [try await processor.undoRename(id: id)]
+    }
+  }
+
+  func revealReviewItem(_ item: ReviewItem) {
+    NSWorkspace.shared.activateFileViewerSelecting([item.sourceURL])
+  }
+
+  func revealRenameRecord(_ record: RenameRecord) {
+    let path = record.canUndo ? record.renamedPath : record.originalPath
+    NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)])
   }
 
   func setLaunchAtLogin(_ enabled: Bool) {
@@ -305,12 +375,14 @@ final class AppController: ObservableObject {
     processor = ImageProcessor(
       directory: url,
       stateURL: stateURL,
-      namer: OllamaClient(configuration: currentNamingConfiguration)
+      namer: OllamaClient(configuration: currentNamingConfiguration),
+      reviewBeforeRenaming: reviewBeforeRenaming
     )
     hasFolderAccess = true
     recovery = nil
     activity = "Watching Downloads"
     startMonitoring()
+    refreshReviews()
   }
 
   private func isDownloads(_ url: URL) -> Bool {
@@ -325,6 +397,8 @@ final class AppController: ObservableObject {
     securityScopedURL = nil
     downloadsURL = nil
     processor = nil
+    pendingReviews = []
+    renameHistory = []
     hasFolderAccess = false
     UserDefaults.standard.removeObject(forKey: Self.bookmarkKey)
   }
@@ -349,7 +423,40 @@ final class AppController: ObservableObject {
     processor = ImageProcessor(
       directory: url,
       stateURL: stateURL,
-      namer: OllamaClient(configuration: currentNamingConfiguration)
+      namer: OllamaClient(configuration: currentNamingConfiguration),
+      reviewBeforeRenaming: reviewBeforeRenaming
     )
+    refreshReviews()
+  }
+
+  private func performReviewAction(
+    _ operation: @escaping @Sendable (ImageProcessor) async throws -> [ProcessingEvent]
+  ) {
+    guard !isApplyingReviews else { return }
+    guard let processor else {
+      reviewError = "Downloads access is required before reviewing files."
+      return
+    }
+    isApplyingReviews = true
+    reviewError = nil
+    Task {
+      do {
+        let events = try await operation(processor)
+        recentEvents = Array((events + recentEvents).prefix(8))
+        if let failure = events.first(where: { $0.kind == .failed }) {
+          reviewError = failure.message
+          activity = failure.message
+        } else if let event = events.last {
+          activity = event.message
+        }
+      } catch {
+        reviewError = error.localizedDescription
+        activity = error.localizedDescription
+      }
+      let snapshot = await processor.reviewSnapshot()
+      pendingReviews = snapshot.pending
+      renameHistory = snapshot.history
+      isApplyingReviews = false
+    }
   }
 }

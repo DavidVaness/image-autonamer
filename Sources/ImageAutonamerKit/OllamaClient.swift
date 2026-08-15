@@ -2,7 +2,23 @@ import AppKit
 import Foundation
 
 public protocol ImageNaming: Sendable {
-  func suggestName(for imageURL: URL) async throws -> String
+  func suggest(for imageURL: URL) async throws -> ImageNamingSuggestion
+}
+
+extension ImageNaming {
+  public func suggestName(for imageURL: URL) async throws -> String {
+    try await suggest(for: imageURL).name
+  }
+}
+
+public struct ImageNamingSuggestion: Sendable, Equatable {
+  public let name: String
+  public let evidence: [String]
+
+  public init(name: String, evidence: [String] = []) {
+    self.name = name
+    self.evidence = evidence
+  }
 }
 
 public enum ImageAutonamerError: LocalizedError, Sendable {
@@ -13,7 +29,10 @@ public enum ImageAutonamerError: LocalizedError, Sendable {
   case ollamaUnavailable
   case ollamaError(String)
   case requestTimedOut
+  case reviewItemUnavailable
+  case reviewSourceMissing
   case unexpectedResponse
+  case undoDestinationExists(String)
   case unusableFilename
 
   public var errorDescription: String? {
@@ -32,8 +51,14 @@ public enum ImageAutonamerError: LocalizedError, Sendable {
       message
     case .requestTimedOut:
       "Ollama took too long to analyze the image."
+    case .reviewItemUnavailable:
+      "That review item is no longer available."
+    case .reviewSourceMissing:
+      "The source image is no longer available."
     case .unexpectedResponse:
       "Ollama returned an unexpected response."
+    case .undoDestinationExists(let filename):
+      "Cannot restore \(filename) because a file with that name already exists."
     case .unusableFilename:
       "The model did not return a usable filename."
     }
@@ -55,7 +80,7 @@ public struct OllamaClient: ImageNaming {
     self.configuration = configuration
   }
 
-  public func suggestName(for imageURL: URL) async throws -> String {
+  public func suggest(for imageURL: URL) async throws -> ImageNamingSuggestion {
     let imageData = try Self.portableImageData(from: imageURL)
     let schema: [String: Any] = [
       "type": "object",
@@ -123,13 +148,44 @@ public struct OllamaClient: ImageNaming {
       else {
         continue
       }
-      return ImageNameComposer.compose(
-        analysis: analysis,
-        configuration: configuration,
-        imageDate: ImageDateResolver.date(for: imageURL)
+      return ImageNamingSuggestion(
+        name: ImageNameComposer.compose(
+          analysis: analysis,
+          configuration: configuration,
+          imageDate: ImageDateResolver.date(for: imageURL)
+        ),
+        evidence: Self.evidence(for: analysis, configuration: configuration)
       )
     }
     throw ImageAutonamerError.unexpectedResponse
+  }
+
+  static func evidence(
+    for analysis: ImageNamingAnalysis,
+    configuration: NamingConfiguration
+  ) -> [String] {
+    guard configuration.style == .documents else {
+      return ["Visible subject: \(analysis.description)"]
+    }
+    let kind = DocumentKind.inferred(from: analysis.documentType)
+    var evidence = ["Type: \(kind.title)"]
+    if analysis.organizationVisible, !analysis.organization.isEmpty {
+      evidence.append("Correspondent: \(analysis.organization)")
+    }
+    if analysis.documentPeriodVisible, !analysis.documentPeriod.isEmpty,
+      kind == .statement || kind == .taxDocument
+    {
+      evidence.append("Period: \(analysis.documentPeriod)")
+    } else if analysis.documentDateVisible, !analysis.documentDate.isEmpty {
+      evidence.append("Date: \(analysis.documentDate)")
+    }
+    if analysis.documentReferenceVisible, !analysis.documentReference.isEmpty,
+      [.invoice, .statement, .certificate, .taxDocument].contains(kind)
+    {
+      evidence.append("Reference: \(analysis.documentReference)")
+    }
+    evidence.append("Subject: \(analysis.description)")
+    return evidence
   }
 
   private static func portableImageData(from url: URL) throws -> Data {

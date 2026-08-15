@@ -7,6 +7,7 @@ import SwiftUI
 private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
   let controller = AppController()
   private var settingsWindowController: NSWindowController?
+  private var reviewWindowController: NSWindowController?
 
   func applicationDidFinishLaunching(_ notification: Notification) {
     guard !launchedAsLoginItem else { return }
@@ -32,12 +33,28 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
   }
 
   func windowWillClose(_ notification: Notification) {
-    settingsWindowController = nil
+    guard let window = notification.object as? NSWindow else { return }
+    if window === settingsWindowController?.window {
+      settingsWindowController = nil
+    }
+    if window === reviewWindowController?.window {
+      reviewWindowController = nil
+    }
+  }
+
+  func showReviewInbox() {
+    let windowController = reviewWindowController ?? makeReviewWindowController()
+    reviewWindowController = windowController
+    controller.refreshReviews()
+    windowController.showWindow(nil)
+    windowController.window?.makeKeyAndOrderFront(nil)
+    NSApplication.shared.activate(ignoringOtherApps: true)
   }
 
   private func makeSettingsWindowController() -> NSWindowController {
     let content = AppSettingsView(
       controller: controller,
+      showReviewInbox: showReviewInbox,
       closeSettings: { [weak self] in
         self?.settingsWindowController?.close()
       }
@@ -47,6 +64,22 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
     window.title = "Image Autonamer Settings"
     window.styleMask = [.titled, .closable, .miniaturizable]
     window.setContentSize(NSSize(width: 550, height: 560))
+    window.center()
+    window.isReleasedWhenClosed = true
+    window.tabbingMode = .disallowed
+    window.delegate = self
+    return NSWindowController(window: window)
+  }
+
+  private func makeReviewWindowController() -> NSWindowController {
+    let hostingController = NSHostingController(
+      rootView: ReviewInboxView(controller: controller)
+    )
+    let window = NSWindow(contentViewController: hostingController)
+    window.title = "Review Inbox"
+    window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
+    window.setContentSize(NSSize(width: 820, height: 600))
+    window.minSize = NSSize(width: 680, height: 460)
     window.center()
     window.isReleasedWhenClosed = true
     window.tabbingMode = .disallowed
@@ -68,7 +101,8 @@ struct ImageAutonamerApp: App {
     MenuBarExtra {
       MenuContent(
         controller: appDelegate.controller,
-        showSettings: appDelegate.showSettings
+        showSettings: appDelegate.showSettings,
+        showReviewInbox: appDelegate.showReviewInbox
       )
     } label: {
       Label("Image Autonamer", systemImage: "photo.badge.checkmark")
@@ -80,6 +114,7 @@ struct ImageAutonamerApp: App {
 private struct MenuContent: View {
   @ObservedObject var controller: AppController
   let showSettings: () -> Void
+  let showReviewInbox: () -> Void
   @State private var showProcessAllConfirmation = false
 
   var body: some View {
@@ -150,6 +185,27 @@ private struct MenuContent: View {
 
       GroupBox {
         HStack(spacing: 10) {
+          Image(systemName: "tray.full.fill")
+            .foregroundStyle(controller.pendingReviews.isEmpty ? Color.secondary : Color.orange)
+          VStack(alignment: .leading, spacing: 2) {
+            Text("Review Inbox")
+              .font(.callout.weight(.semibold))
+            Text(
+              controller.pendingReviews.isEmpty
+                ? "No suggestions waiting" : "\(controller.pendingReviews.count) waiting"
+            )
+            .font(.caption)
+            .foregroundStyle(.secondary)
+          }
+          Spacer()
+          Button("Open…") {
+            showReviewInbox()
+          }
+        }
+      }
+
+      GroupBox {
+        HStack(spacing: 10) {
           Image(systemName: "textformat")
             .foregroundStyle(.purple)
           VStack(alignment: .leading, spacing: 2) {
@@ -173,6 +229,15 @@ private struct MenuContent: View {
           set: { controller.setLaunchAtLogin($0) }
         )
       )
+
+      Toggle(
+        "Review Before Renaming",
+        isOn: Binding(
+          get: { controller.reviewBeforeRenaming },
+          set: { controller.setReviewBeforeRenaming($0) }
+        )
+      )
+      .disabled(controller.isScanning || controller.isApplyingReviews)
 
       HStack {
         Button("Scan Now") {
@@ -220,7 +285,10 @@ private struct MenuContent: View {
   private func symbol(for kind: ProcessingEvent.Kind) -> String {
     switch kind {
     case .baseline: "shield.checkered"
+    case .queued: "tray.full.fill"
     case .renamed: "checkmark.circle.fill"
+    case .rejected: "hand.raised.fill"
+    case .undone: "arrow.uturn.backward.circle.fill"
     case .skipped: "minus.circle"
     case .failed: "exclamationmark.triangle.fill"
     }
@@ -242,12 +310,13 @@ private struct AppSettingsView: View {
   }
 
   @ObservedObject var controller: AppController
+  let showReviewInbox: () -> Void
   let closeSettings: () -> Void
   @State private var selectedTab = Tab.general
 
   var body: some View {
     TabView(selection: $selectedTab) {
-      GeneralSettingsView(controller: controller)
+      GeneralSettingsView(controller: controller, showReviewInbox: showReviewInbox)
         .tabItem {
           Label("General", systemImage: "gearshape")
         }
@@ -265,6 +334,7 @@ private struct AppSettingsView: View {
 
 private struct GeneralSettingsView: View {
   @ObservedObject var controller: AppController
+  let showReviewInbox: () -> Void
   @State private var showProcessAllConfirmation = false
 
   var body: some View {
@@ -325,6 +395,26 @@ private struct GeneralSettingsView: View {
           Text("The app keeps running in the menu bar and checks for new images every 15 seconds.")
             .font(.caption)
             .foregroundStyle(.secondary)
+          Divider()
+          HStack {
+            Toggle(
+              "Review suggestions before renaming",
+              isOn: Binding(
+                get: { controller.reviewBeforeRenaming },
+                set: { controller.setReviewBeforeRenaming($0) }
+              )
+            )
+            .disabled(controller.isScanning || controller.isApplyingReviews)
+            Spacer()
+            Button("Open Inbox…") {
+              showReviewInbox()
+            }
+          }
+          Text(
+            "When enabled, new images wait for approval. Automatic renaming remains the default."
+          )
+          .font(.caption)
+          .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(6)
@@ -370,6 +460,283 @@ private struct GeneralSettingsView: View {
       Text(
         "This renames every supported image currently in Downloads. New images are processed automatically without this step."
       )
+    }
+  }
+}
+
+private struct ReviewInboxView: View {
+  private enum Section: String, CaseIterable, Identifiable {
+    case pending = "Pending"
+    case history = "History"
+
+    var id: Self { self }
+  }
+
+  @ObservedObject var controller: AppController
+  @State private var section = Section.pending
+  @State private var draftStems: [UUID: String] = [:]
+
+  var body: some View {
+    VStack(spacing: 0) {
+      HStack(alignment: .center, spacing: 16) {
+        VStack(alignment: .leading, spacing: 4) {
+          Text("Review Inbox")
+            .font(.title.weight(.semibold))
+          Text("Verify local AI suggestions before they touch your filenames.")
+            .foregroundStyle(.secondary)
+        }
+
+        Spacer()
+
+        Picker("Section", selection: $section) {
+          Text("Pending \(controller.pendingReviews.count)").tag(Section.pending)
+          Text("History \(controller.renameHistory.count)").tag(Section.history)
+        }
+        .labelsHidden()
+        .pickerStyle(.segmented)
+        .frame(width: 250)
+      }
+      .padding(20)
+
+      Divider()
+
+      Group {
+        switch section {
+        case .pending:
+          pendingContent
+        case .history:
+          historyContent
+        }
+      }
+
+      if let error = controller.reviewError {
+        Divider()
+        HStack {
+          Label(error, systemImage: "exclamationmark.triangle.fill")
+            .font(.callout)
+            .foregroundStyle(.red)
+          Spacer()
+          Button("Dismiss") {
+            controller.clearReviewError()
+          }
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 10)
+      }
+    }
+    .frame(minWidth: 680, minHeight: 460)
+    .onAppear {
+      controller.refreshReviews()
+      synchronizeDrafts()
+    }
+    .onChange(of: controller.pendingReviews) { _ in
+      synchronizeDrafts()
+    }
+  }
+
+  @ViewBuilder
+  private var pendingContent: some View {
+    if controller.pendingReviews.isEmpty {
+      emptyState(
+        icon: "checkmark.circle",
+        title: "Inbox clear",
+        message: !controller.hasFolderAccess
+          ? "Grant Downloads access in General Settings to review suggestions."
+          : controller.reviewBeforeRenaming
+            ? "New image suggestions will appear here before renaming."
+            : "Enable Review Before Renaming in General Settings to hold new suggestions here."
+      )
+    } else {
+      VStack(spacing: 0) {
+        ScrollView {
+          LazyVStack(spacing: 0) {
+            ForEach(controller.pendingReviews) { item in
+              pendingRow(item)
+              Divider()
+                .padding(.leading, 112)
+            }
+          }
+        }
+
+        Divider()
+
+        HStack {
+          Text("Files stay unchanged until you approve them.")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+          Spacer()
+          if controller.isApplyingReviews {
+            ProgressView()
+              .controlSize(.small)
+          }
+          Button("Approve All (\(controller.pendingReviews.count))") {
+            controller.approveAllReviews(editedStems: draftStems)
+          }
+          .buttonStyle(.borderedProminent)
+          .disabled(controller.isApplyingReviews)
+        }
+        .padding(16)
+      }
+    }
+  }
+
+  @ViewBuilder
+  private var historyContent: some View {
+    if controller.renameHistory.isEmpty {
+      emptyState(
+        icon: "clock.arrow.circlepath",
+        title: "No rename history",
+        message: "Approved and automatic renames will appear here with an undo action."
+      )
+    } else {
+      ScrollView {
+        LazyVStack(spacing: 0) {
+          ForEach(controller.renameHistory) { record in
+            historyRow(record)
+            Divider()
+              .padding(.leading, 28)
+          }
+        }
+      }
+    }
+  }
+
+  private func pendingRow(_ item: ReviewItem) -> some View {
+    HStack(alignment: .top, spacing: 16) {
+      thumbnail(for: item.sourceURL)
+
+      VStack(alignment: .leading, spacing: 8) {
+        Text(item.originalFilename)
+          .font(.headline)
+          .lineLimit(1)
+          .help(item.sourcePath)
+
+        HStack(spacing: 6) {
+          TextField("Proposed filename", text: draftBinding(for: item))
+            .textFieldStyle(.roundedBorder)
+            .accessibilityLabel("Proposed filename for \(item.originalFilename)")
+          Text(".\(item.sourceURL.pathExtension.lowercased())")
+            .font(.callout.monospaced())
+            .foregroundStyle(.secondary)
+        }
+
+        if !item.evidence.isEmpty {
+          Label(item.evidence.joined(separator: "  ·  "), systemImage: "eye")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .lineLimit(2)
+        }
+      }
+
+      VStack(alignment: .trailing, spacing: 8) {
+        Button("Approve") {
+          controller.approveReview(
+            id: item.id,
+            editedStem: draftStems[item.id] ?? item.proposedStem
+          )
+        }
+        .buttonStyle(.borderedProminent)
+        .disabled(controller.isApplyingReviews)
+
+        Button("Keep Original") {
+          controller.rejectReview(id: item.id)
+        }
+        .disabled(controller.isApplyingReviews)
+
+        Button("Show in Finder") {
+          controller.revealReviewItem(item)
+        }
+      }
+      .frame(width: 112, alignment: .trailing)
+    }
+    .padding(.horizontal, 20)
+    .padding(.vertical, 14)
+  }
+
+  private func historyRow(_ record: RenameRecord) -> some View {
+    HStack(spacing: 14) {
+      Image(systemName: record.canUndo ? "checkmark.circle.fill" : "arrow.uturn.backward.circle")
+        .font(.title2)
+        .foregroundStyle(record.canUndo ? Color.green : Color.secondary)
+        .frame(width: 28)
+
+      VStack(alignment: .leading, spacing: 4) {
+        Text(record.renamedFilename)
+          .font(.headline)
+          .lineLimit(1)
+        Text(
+          "From \(record.originalFilename) · \(record.renamedAt.formatted(date: .abbreviated, time: .shortened))"
+        )
+        .font(.caption)
+        .foregroundStyle(.secondary)
+        if record.undoneAt != nil {
+          Text("Restored to the original filename")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        }
+      }
+
+      Spacer()
+
+      Button("Show in Finder") {
+        controller.revealRenameRecord(record)
+      }
+
+      Button("Undo") {
+        controller.undoRename(id: record.id)
+      }
+      .disabled(!record.canUndo || controller.isApplyingReviews)
+    }
+    .padding(.horizontal, 20)
+    .padding(.vertical, 14)
+  }
+
+  private func thumbnail(for url: URL) -> some View {
+    Group {
+      if let image = NSImage(contentsOf: url) {
+        Image(nsImage: image)
+          .resizable()
+          .scaledToFit()
+      } else {
+        Image(systemName: "photo")
+          .font(.title)
+          .foregroundStyle(.secondary)
+      }
+    }
+    .frame(width: 76, height: 64)
+    .background(.quaternary.opacity(0.5))
+    .clipShape(RoundedRectangle(cornerRadius: 8))
+    .accessibilityLabel("Preview of \(url.lastPathComponent)")
+  }
+
+  private func emptyState(icon: String, title: String, message: String) -> some View {
+    VStack(spacing: 10) {
+      Image(systemName: icon)
+        .font(.system(size: 42, weight: .light))
+        .foregroundStyle(.secondary)
+      Text(title)
+        .font(.title2.weight(.semibold))
+      Text(message)
+        .foregroundStyle(.secondary)
+        .multilineTextAlignment(.center)
+        .frame(maxWidth: 420)
+    }
+    .frame(maxWidth: .infinity, maxHeight: .infinity)
+    .padding(32)
+  }
+
+  private func draftBinding(for item: ReviewItem) -> Binding<String> {
+    Binding(
+      get: { draftStems[item.id] ?? item.proposedStem },
+      set: { draftStems[item.id] = $0 }
+    )
+  }
+
+  private func synchronizeDrafts() {
+    let currentIDs = Set(controller.pendingReviews.map(\.id))
+    draftStems = draftStems.filter { currentIDs.contains($0.key) }
+    for item in controller.pendingReviews where draftStems[item.id] == nil {
+      draftStems[item.id] = item.proposedStem
     }
   }
 }
