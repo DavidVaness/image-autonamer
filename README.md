@@ -27,7 +27,7 @@
 <p align="center">
   <a href="docs/assets/demo.mp4"><strong>Watch the 60-second demo in HD</strong></a>
   ·
-  <a href="https://github.com/DavidVaness/image-autonamer/releases/latest"><strong>Download v0.3.0</strong></a>
+  <a href="https://github.com/DavidVaness/image-autonamer/releases/latest"><strong>Download v0.4.0</strong></a>
 </p>
 
 ## Install in one command
@@ -47,7 +47,7 @@ That one explicit choice creates a persistent security-scoped bookmark inside th
 Full Disk Access is not required.
 
 > [!NOTE]
-> The v0.3.0 binary is ad-hoc signed and supports Apple Silicon.
+> The v0.4.0 binary is ad-hoc signed and supports Apple Silicon.
 > A Developer ID certificate and Apple notarization are the remaining steps for conventional consumer distribution.
 > Intel Macs can build from source.
 
@@ -229,7 +229,7 @@ swift test
 PYTHONPATH=src python3 -m unittest discover -s tests -v
 
 # Release app and checksum manifest
-./scripts/package-release.sh 0.3.0
+./scripts/package-release.sh 0.4.0
 
 # Rebuild the 60-second MP4 and GIF from original SVG sources
 ./scripts/build-demo.sh

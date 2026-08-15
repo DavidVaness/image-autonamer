@@ -30,7 +30,7 @@ jobs:
       - uses: actions/checkout@v7
       - run: sh -n scripts/*.sh bin/image-autonamer
       - run: swift test
-      - run: ./scripts/package-release.sh 0.3.0
+      - run: ./scripts/package-release.sh 0.4.0
       - run: codesign --verify --deep --strict --verbose=2 "dist/Image Autonamer.app"
       - run: test -f "dist/Image Autonamer.app/Contents/Resources/AppIcon.icns"
       - run: unzip -t "dist/Image-Autonamer-macOS-$(uname -m).zip"
