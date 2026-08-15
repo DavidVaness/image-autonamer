@@ -18,7 +18,6 @@ final class AppController: ObservableObject {
   @Published private(set) var hasFolderAccess = false
   @Published private(set) var recovery: ProcessingEvent.Recovery?
   @Published private(set) var namingStyle: NamingStyle = .descriptive
-  @Published private(set) var organizationVocabulary = ""
   @Published private(set) var namingContext = ""
   @Published private(set) var isPreviewing = false
   @Published private(set) var previewResult: String?
@@ -32,18 +31,15 @@ final class AppController: ObservableObject {
   private var timer: Timer?
   private static let bookmarkKey = "downloadsSecurityScopedBookmark"
   private static let namingStyleKey = "namingStyle"
-  private static let organizationVocabularyKey = "organizationVocabulary"
   private static let namingContextKey = "namingContext"
 
   init() {
     defaultDownloadsURL = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask)[0]
-    if let rawStyle = UserDefaults.standard.string(forKey: Self.namingStyleKey),
-      let savedStyle = NamingStyle(rawValue: rawStyle)
-    {
-      namingStyle = savedStyle
+    if let rawStyle = UserDefaults.standard.string(forKey: Self.namingStyleKey) {
+      namingStyle =
+        rawStyle == "businessDocument"
+        ? .documents : NamingStyle(rawValue: rawStyle) ?? .descriptive
     }
-    organizationVocabulary =
-      UserDefaults.standard.string(forKey: Self.organizationVocabularyKey) ?? ""
     namingContext = UserDefaults.standard.string(forKey: Self.namingContextKey) ?? ""
     let loginService = SMAppService.mainApp
     launchAtLogin = loginService.status == .enabled
@@ -138,19 +134,12 @@ final class AppController: ObservableObject {
 
   func saveNamingSettings(
     style: NamingStyle,
-    organizationVocabulary: String,
     namingContext: String
   ) {
-    let organizations = Self.organizations(from: organizationVocabulary)
     let context = NamingConfiguration.cleanContext(namingContext)
     namingStyle = style
-    self.organizationVocabulary = organizations.joined(separator: ", ")
     self.namingContext = context
     UserDefaults.standard.set(style.rawValue, forKey: Self.namingStyleKey)
-    UserDefaults.standard.set(
-      self.organizationVocabulary,
-      forKey: Self.organizationVocabularyKey
-    )
     UserDefaults.standard.set(context, forKey: Self.namingContextKey)
     rebuildProcessor()
     activity = "Using \(style.title.lowercased()) names."
@@ -158,7 +147,6 @@ final class AppController: ObservableObject {
 
   func previewImage(
     style: NamingStyle,
-    organizationVocabulary: String,
     namingContext: String
   ) {
     NSApplication.shared.setActivationPolicy(.regular)
@@ -179,7 +167,6 @@ final class AppController: ObservableObject {
     guard panel.runModal() == .OK, let imageURL = panel.url else { return }
     let configuration = NamingConfiguration(
       style: style,
-      knownOrganizations: Self.organizations(from: organizationVocabulary),
       analysisContext: namingContext
     )
     isPreviewing = true
@@ -345,7 +332,6 @@ final class AppController: ObservableObject {
   private var currentNamingConfiguration: NamingConfiguration {
     NamingConfiguration(
       style: namingStyle,
-      knownOrganizations: Self.organizations(from: organizationVocabulary),
       analysisContext: namingContext
     )
   }
@@ -365,10 +351,5 @@ final class AppController: ObservableObject {
       stateURL: stateURL,
       namer: OllamaClient(configuration: currentNamingConfiguration)
     )
-  }
-
-  private static func organizations(from value: String) -> [String] {
-    let separators = CharacterSet(charactersIn: ",\n")
-    return NamingConfiguration.cleanOrganizations(value.components(separatedBy: separators))
   }
 }

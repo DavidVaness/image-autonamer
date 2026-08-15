@@ -4,13 +4,13 @@ import ImageIO
 public enum NamingStyle: String, CaseIterable, Codable, Sendable {
   case descriptive
   case dateDescriptive
-  case businessDocument
+  case documents
 
   public var title: String {
     switch self {
     case .descriptive: "Descriptive"
     case .dateDescriptive: "Date + descriptive"
-    case .businessDocument: "Business document"
+    case .documents: "Documents"
     }
   }
 
@@ -20,33 +20,87 @@ public enum NamingStyle: String, CaseIterable, Codable, Sendable {
       "A concise description of the visible subject."
     case .dateDescriptive:
       "Prefixes the capture date, or the file date when capture metadata is unavailable."
-    case .businessDocument:
-      "Prioritizes visible organizations, document types, and business context."
+    case .documents:
+      "Detects the document type and builds a type-specific name from visible metadata."
+    }
+  }
+
+  public init(from decoder: any Decoder) throws {
+    let value = try decoder.singleValueContainer().decode(String.self)
+    if value == "businessDocument" {
+      self = .documents
+    } else if let style = Self(rawValue: value) {
+      self = style
+    } else {
+      throw DecodingError.dataCorruptedError(
+        in: try decoder.singleValueContainer(),
+        debugDescription: "Unknown naming style: \(value)"
+      )
+    }
+  }
+
+  public func encode(to encoder: any Encoder) throws {
+    var container = encoder.singleValueContainer()
+    try container.encode(rawValue)
+  }
+}
+
+public enum DocumentKind: String, CaseIterable, Codable, Sendable {
+  case invoice
+  case receipt
+  case statement
+  case contract
+  case letter
+  case report
+  case certificate
+  case taxDocument = "tax_document"
+  case other
+
+  public var title: String {
+    switch self {
+    case .invoice: "Invoice"
+    case .receipt: "Receipt"
+    case .statement: "Statement"
+    case .contract: "Contract"
+    case .letter: "Letter"
+    case .report: "Report"
+    case .certificate: "Certificate"
+    case .taxDocument: "Tax document"
+    case .other: "Other document"
+    }
+  }
+
+  static func inferred(from value: String) -> Self {
+    let normalized = value.lowercased()
+      .replacingOccurrences(of: "-", with: "_")
+      .replacingOccurrences(of: " ", with: "_")
+    return Self(rawValue: normalized) ?? .other
+  }
+
+  fileprivate var filenameWords: [String] {
+    switch self {
+    case .taxDocument: ["tax", "document"]
+    case .other: ["document"]
+    default: [rawValue]
     }
   }
 }
 
 public struct NamingConfiguration: Codable, Equatable, Sendable {
   public var style: NamingStyle
-  public var knownOrganizations: [String]
   public var analysisContext: String
 
   public init(
     style: NamingStyle = .descriptive,
-    knownOrganizations: [String] = [],
     analysisContext: String = ""
   ) {
     self.style = style
-    self.knownOrganizations = Self.cleanOrganizations(knownOrganizations)
     self.analysisContext = Self.cleanContext(analysisContext)
   }
 
   public init(from decoder: any Decoder) throws {
     let container = try decoder.container(keyedBy: CodingKeys.self)
     style = try container.decodeIfPresent(NamingStyle.self, forKey: .style) ?? .descriptive
-    knownOrganizations = Self.cleanOrganizations(
-      try container.decodeIfPresent([String].self, forKey: .knownOrganizations) ?? []
-    )
     analysisContext = Self.cleanContext(
       try container.decodeIfPresent(String.self, forKey: .analysisContext) ?? ""
     )
@@ -54,26 +108,7 @@ public struct NamingConfiguration: Codable, Equatable, Sendable {
 
   private enum CodingKeys: String, CodingKey {
     case style
-    case knownOrganizations
     case analysisContext
-  }
-
-  public static func cleanOrganizations(_ values: [String]) -> [String] {
-    var seen = Set<String>()
-    return values.compactMap { value in
-      let cleaned =
-        value
-        .components(separatedBy: .newlines)
-        .joined(separator: " ")
-        .trimmingCharacters(in: .whitespacesAndNewlines)
-      guard !cleaned.isEmpty else { return nil }
-      let limited = String(cleaned.prefix(60))
-      let key = limited.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
-      guard seen.insert(key).inserted else { return nil }
-      return limited
-    }
-    .prefix(20)
-    .map { $0 }
   }
 
   public static func cleanContext(_ value: String) -> String {
@@ -90,12 +125,48 @@ struct ImageNamingAnalysis: Decodable, Equatable, Sendable {
   let organization: String
   let organizationVisible: Bool
   let documentType: String
+  let documentDate: String
+  let documentDateVisible: Bool
+  let documentReference: String
+  let documentReferenceVisible: Bool
+  let documentPeriod: String
+  let documentPeriodVisible: Bool
+
+  init(
+    description: String,
+    organization: String,
+    organizationVisible: Bool,
+    documentType: String,
+    documentDate: String = "",
+    documentDateVisible: Bool = false,
+    documentReference: String = "",
+    documentReferenceVisible: Bool = false,
+    documentPeriod: String = "",
+    documentPeriodVisible: Bool = false
+  ) {
+    self.description = description
+    self.organization = organization
+    self.organizationVisible = organizationVisible
+    self.documentType = documentType
+    self.documentDate = documentDate
+    self.documentDateVisible = documentDateVisible
+    self.documentReference = documentReference
+    self.documentReferenceVisible = documentReferenceVisible
+    self.documentPeriod = documentPeriod
+    self.documentPeriodVisible = documentPeriodVisible
+  }
 
   enum CodingKeys: String, CodingKey {
     case description
     case organization
     case organizationVisible = "organization_visible"
     case documentType = "document_type"
+    case documentDate = "document_date"
+    case documentDateVisible = "document_date_visible"
+    case documentReference = "document_reference"
+    case documentReferenceVisible = "document_reference_visible"
+    case documentPeriod = "document_period"
+    case documentPeriodVisible = "document_period_visible"
   }
 }
 
@@ -111,31 +182,71 @@ enum ImageNameComposer {
     case .dateDescriptive:
       guard let imageDate else { return analysis.description }
       return "\(formatted(imageDate)) \(analysis.description)"
-    case .businessDocument:
-      var words: [String] = []
-      if analysis.organizationVisible, !analysis.organization.isEmpty {
-        merge(
-          tokens(
-            canonicalOrganization(analysis.organization, configuration: configuration)
-          ),
-          into: &words
-        )
-      }
-      if !analysis.documentType.isEmpty {
-        merge(tokens(analysis.documentType), into: &words)
-      }
-      merge(tokens(analysis.description), into: &words)
-      return words.joined(separator: " ")
+    case .documents:
+      return composeDocument(analysis)
     }
   }
 
-  private static func canonicalOrganization(
-    _ detected: String,
-    configuration: NamingConfiguration
-  ) -> String {
-    configuration.knownOrganizations.first {
-      $0.compare(detected, options: [.caseInsensitive, .diacriticInsensitive]) == .orderedSame
-    } ?? detected
+  private static func composeDocument(_ analysis: ImageNamingAnalysis) -> String {
+    let kind = DocumentKind.inferred(from: analysis.documentType)
+    let date = analysis.documentDateVisible ? validDate(analysis.documentDate) : nil
+    let period = analysis.documentPeriodVisible ? validPeriod(analysis.documentPeriod) : nil
+    let reference =
+      analysis.documentReferenceVisible ? tokens(analysis.documentReference) : []
+    let organization = analysis.organizationVisible ? tokens(analysis.organization) : []
+    var words: [String] = []
+
+    switch kind {
+    case .statement, .taxDocument:
+      merge(tokens(period ?? date ?? ""), into: &words)
+    default:
+      merge(tokens(date ?? ""), into: &words)
+    }
+    merge(organization, into: &words)
+    merge(kind.filenameWords, into: &words)
+
+    switch kind {
+    case .invoice, .statement, .certificate, .taxDocument:
+      merge(reference, into: &words)
+    case .receipt, .contract, .letter, .report, .other:
+      break
+    }
+
+    merge(tokens(analysis.description), into: &words)
+    return words.joined(separator: " ")
+  }
+
+  private static func validDate(_ value: String) -> String? {
+    guard value.range(of: #"^\d{4}-\d{2}-\d{2}$"#, options: .regularExpression) != nil
+    else {
+      return nil
+    }
+    let formatter = DateFormatter()
+    formatter.calendar = Calendar(identifier: .gregorian)
+    formatter.locale = Locale(identifier: "en_US_POSIX")
+    formatter.dateFormat = "yyyy-MM-dd"
+    formatter.isLenient = false
+    return formatter.date(from: value).map { _ in value }
+  }
+
+  private static func validPeriod(_ value: String) -> String? {
+    if value.range(of: #"^\d{4}$"#, options: .regularExpression) != nil {
+      return value
+    }
+    let components = value.components(separatedBy: "-to-")
+    guard components.count <= 2, components.allSatisfy(validYearMonth) else {
+      return nil
+    }
+    return value
+  }
+
+  private static func validYearMonth(_ value: String) -> Bool {
+    guard value.range(of: #"^\d{4}-\d{2}$"#, options: .regularExpression) != nil,
+      let month = Int(value.suffix(2))
+    else {
+      return false
+    }
+    return (1...12).contains(month)
   }
 
   private static func formatted(_ date: Date) -> String {

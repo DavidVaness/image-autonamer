@@ -7,7 +7,7 @@ public enum FilenameSanitizer {
 
   public static func slugify(
     _ value: String,
-    maxWords: Int = 8,
+    maxWords: Int = 12,
     maxLength: Int = 96
   ) throws -> String {
     let folded =

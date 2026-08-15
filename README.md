@@ -84,15 +84,17 @@ Open Image Autonamer from Finder, Spotlight, or your app switcher to show Settin
 You can also select **Configure…** from the Naming status row in the menu bar app.
 The preview button analyzes a selected image locally and shows the proposed filename without renaming or moving the file.
 
-| Preset | Example result | Best for |
+| Mode | Example result | Best for |
 | --- | --- | --- |
 | Descriptive | `red-coffee-mug-beside-laptop.jpg` | General screenshots, photos, and downloaded images |
 | Date + descriptive | `2026-08-11-red-coffee-mug-beside-laptop.jpg` | Chronological sorting and camera imports |
-| Business document | `example-co-invoice-annual-software-renewal.png` | Invoices, reports, dashboards, and business screenshots |
+| Documents | `2026-08-01-example-co-invoice-inv-1042-annual-renewal.png` | Scans and screenshots of invoices, receipts, statements, contracts, letters, reports, certificates, and tax documents |
 
 Date-prefixed names use the image capture date when metadata provides one, then fall back to the file creation or modification date.
-Business mode can accept a short list of known organization spellings as optional context.
-The model must still report that the exact name or wordmark is visibly supported before deterministic filename assembly includes it.
+Documents mode infers the correspondent from the visible issuer, sender, merchant, or wordmark in each file.
+It classifies the document type and then applies a deterministic type-specific recipe.
+Invoices can include a visible invoice reference, statements prefer a visible statement period, and receipts omit reference numbers to stay concise.
+Missing or ambiguous metadata is omitted instead of guessed.
 An optional Naming context field accepts up to 500 characters of workflow guidance, such as the type of business or image collection.
 The app normalizes that text and instructs the local model to treat it as reference data without overriding visible-evidence rules.
 There is intentionally no unrestricted system-prompt editor.
@@ -129,7 +131,7 @@ Image Autonamer keeps inference on the Mac and limits automatic filesystem acces
 - Protects images that existed before first-run setup.
 - Waits for downloads to settle and verifies that a file did not change during analysis.
 - Treats model output as untrusted input and reduces it to a safe lowercase ASCII slug.
-- Offers three focused naming presets and a no-rename preview instead of an open-ended prompt surface.
+- Offers three focused naming modes, dynamic document recipes, and a no-rename preview instead of an open-ended prompt surface.
 - Uses collision-safe filesystem operations that never overwrite another file.
 - Includes a standalone Python CLI for dry runs, one-off images, recursive batches, and Linux.
 
@@ -152,7 +154,7 @@ flowchart LR
 
 `ImageProcessor` is a Swift actor, so scans cannot mutate state concurrently.
 Ollama is asked for schema-constrained visible facts at a low temperature.
-Deterministic code applies the selected naming preset, and the result is still sanitized before touching the filesystem.
+Deterministic code applies the selected naming mode, and the result is still sanitized before touching the filesystem.
 The source is fingerprinted before and after inference to catch partial or changing downloads.
 
 ## Security model
@@ -164,7 +166,7 @@ It has no Full Disk Access, no automation entitlement, no telemetry, and no thir
 Image bytes are sent to the configured Ollama endpoint, which is hard-coded by default to `http://127.0.0.1:11434`.
 The sandbox entitlement technically permits outbound client connections because macOS does not offer a localhost-only network entitlement.
 The shipped code uses no remote endpoint.
-Optional organization vocabulary and naming context are included only in requests to that same local endpoint and are stored in the app's private preferences.
+Optional naming context is included only in requests to that same local endpoint and is stored in the app's private preferences.
 
 Filesystem handling is defensive:
 
@@ -183,9 +185,10 @@ Filesystem handling is defensive:
 | 15-second polling | FSEvents | A small top-level directory scan is predictable, easy to test, and naturally pairs with the settle window for partially downloaded files. |
 | Local Ollama inference | Hosted vision API | Privacy and offline operation matter more here than model startup time and disk usage. |
 | JSON schema plus sanitizer | Free-form model text | Model output remains untrusted even when structured generation succeeds. |
-| Three presets plus deterministic composition | Raw custom prompts | Common workflows stay predictable, testable, and resistant to prompt mistakes while the tool remains focused. |
+| Three modes plus deterministic composition | Raw custom prompts | Common workflows stay predictable, testable, and resistant to prompt mistakes while the tool remains focused. |
 | Bounded reference context | An unrestricted system-prompt editor | Users can add domain vocabulary without weakening visible-evidence rules or turning the app into a prompt workbench. |
-| Visible-evidence gate for brands | Guessing organizations from visual style | A missed brand is less harmful than a confidently wrong business filename. |
+| Dynamic visible correspondents | A manually maintained company list | Each document can name its actual issuer while the visible-evidence gate prevents unsupported brand guesses. |
+| Type-specific document recipes | One generic business filename | Invoices, receipts, statements, and other documents include only metadata that is useful for that type. |
 | Hard link, then unlink | `moveItem` after an existence check | Claiming the destination atomically removes the check-then-write race that could overwrite a file. |
 | Ad-hoc signed release artifact | Unsigned bundle or premature App Store packaging | The artifact is reproducible and sandboxed today, while notarization remains an explicit production-distribution follow-up. |
 

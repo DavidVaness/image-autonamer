@@ -378,14 +378,12 @@ private struct NamingSettingsView: View {
   @ObservedObject var controller: AppController
   let closeSettings: () -> Void
   @State private var style: NamingStyle
-  @State private var organizationVocabulary: String
   @State private var namingContext: String
 
   init(controller: AppController, closeSettings: @escaping () -> Void) {
     self.controller = controller
     self.closeSettings = closeSettings
     _style = State(initialValue: controller.namingStyle)
-    _organizationVocabulary = State(initialValue: controller.organizationVocabulary)
     _namingContext = State(initialValue: controller.namingContext)
   }
 
@@ -411,17 +409,42 @@ private struct NamingSettingsView: View {
             .font(.callout)
             .foregroundStyle(.secondary)
 
-          if style == .businessDocument {
-            VStack(alignment: .leading, spacing: 6) {
-              Text("Known organizations")
-                .font(.headline)
-              TextField("Example & Co., Cedar Labs", text: $organizationVocabulary)
-                .textFieldStyle(.roundedBorder)
-              Text(
-                "Optional, comma-separated spelling hints. A name is used only when it is visibly supported in the image."
-              )
-              .font(.caption)
-              .foregroundStyle(.secondary)
+          if style == .documents {
+            GroupBox("Automatic document structure") {
+              VStack(alignment: .leading, spacing: 10) {
+                Label(
+                  "The correspondent is inferred from the visible issuer, sender, or merchant.",
+                  systemImage: "building.2"
+                )
+                .font(.callout)
+
+                Divider()
+
+                documentRecipe(
+                  type: "Invoice",
+                  recipe: "date · correspondent · invoice · reference · title"
+                )
+                documentRecipe(
+                  type: "Statement",
+                  recipe: "period · correspondent · statement · reference · title"
+                )
+                documentRecipe(
+                  type: "Receipt",
+                  recipe: "date · merchant · receipt · title"
+                )
+                documentRecipe(
+                  type: "Other",
+                  recipe: "date · correspondent · document · title"
+                )
+
+                Text(
+                  "Also detects contracts, letters, reports, certificates, and tax documents. Missing or ambiguous fields are omitted."
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
+              }
+              .frame(maxWidth: .infinity, alignment: .leading)
+              .padding(6)
             }
           }
 
@@ -445,7 +468,9 @@ private struct NamingSettingsView: View {
                   .stroke(.quaternary)
               }
             Text(
-              "Optional guidance, for example: Product screenshots for a pottery shop. Stored locally and sent only to Ollama."
+              style == .documents
+                ? "Optional domain guidance, for example: German consulting invoices and tax letters. Correspondents still must be visible."
+                : "Optional guidance, for example: Product screenshots for a pottery shop. Stored locally and sent only to Ollama."
             )
             .font(.caption)
             .foregroundStyle(.secondary)
@@ -457,7 +482,6 @@ private struct NamingSettingsView: View {
                 Button("Preview with Image…") {
                   controller.previewImage(
                     style: style,
-                    organizationVocabulary: organizationVocabulary,
                     namingContext: namingContext
                   )
                 }
@@ -504,7 +528,6 @@ private struct NamingSettingsView: View {
         Button("Save") {
           controller.saveNamingSettings(
             style: style,
-            organizationVocabulary: organizationVocabulary,
             namingContext: namingContext
           )
           closeSettings()
@@ -517,9 +540,6 @@ private struct NamingSettingsView: View {
     .onChange(of: style) { _ in
       controller.clearPreview()
     }
-    .onChange(of: organizationVocabulary) { _ in
-      controller.clearPreview()
-    }
     .onChange(of: namingContext) { value in
       if value.count > 500 {
         namingContext = String(value.prefix(500))
@@ -528,6 +548,17 @@ private struct NamingSettingsView: View {
     }
     .onDisappear {
       controller.cancelPreview()
+    }
+  }
+
+  private func documentRecipe(type: String, recipe: String) -> some View {
+    HStack(alignment: .firstTextBaseline, spacing: 10) {
+      Text(type)
+        .font(.callout.weight(.semibold))
+        .frame(width: 72, alignment: .leading)
+      Text(recipe)
+        .font(.caption.monospaced())
+        .foregroundStyle(.secondary)
     }
   }
 }
