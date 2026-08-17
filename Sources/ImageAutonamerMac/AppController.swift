@@ -40,6 +40,14 @@ final class AppController: ObservableObject {
   private static let reviewBeforeRenamingKey = "reviewBeforeRenaming"
 
   init() {
+    #if DEBUG
+      if ProcessInfo.processInfo.arguments.contains("--capture-demo") {
+        defaultDownloadsURL = Self.captureDemoDirectory()
+        configureCaptureDemo()
+        return
+      }
+    #endif
+
     defaultDownloadsURL = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask)[0]
     if let rawStyle = UserDefaults.standard.string(forKey: Self.namingStyleKey) {
       namingStyle =
@@ -459,4 +467,68 @@ final class AppController: ObservableObject {
       isApplyingReviews = false
     }
   }
+
+  #if DEBUG
+    private static func captureDemoDirectory() -> URL {
+      FileManager.default.temporaryDirectory
+        .appending(
+          path: "image-autonamer-capture-demo-\(ProcessInfo.processInfo.processIdentifier)",
+          directoryHint: .isDirectory
+        )
+    }
+
+    private func configureCaptureDemo() {
+      namingStyle = .documents
+      namingContext = "Synthetic product demo documents"
+      reviewBeforeRenaming = false
+      launchAtLogin = true
+      downloadsURL = defaultDownloadsURL
+      hasFolderAccess = true
+      activity = "Watching isolated demo folder"
+
+      guard ProcessInfo.processInfo.arguments.contains("--capture-review"),
+        let fixturePath = ProcessInfo.processInfo.environment["IMAGE_AUTONAMER_DEMO_FIXTURE"]
+      else {
+        return
+      }
+
+      let fileManager = FileManager.default
+      let fixtureURL = URL(fileURLWithPath: fixturePath)
+      do {
+        try fileManager.createDirectory(
+          at: defaultDownloadsURL,
+          withIntermediateDirectories: true
+        )
+        for filename in ["123.pdf", "K-U-N-D-E-N-B-E-L-E-G.pdf"] {
+          try fileManager.copyItem(
+            at: fixtureURL,
+            to: defaultDownloadsURL.appending(path: filename)
+          )
+        }
+      } catch {
+        activity = "Could not prepare demo: \(error.localizedDescription)"
+        return
+      }
+
+      let stateURL = defaultDownloadsURL.appending(path: ".demo-state.json")
+      let captureProcessor = ImageProcessor(
+        directory: defaultDownloadsURL,
+        stateURL: stateURL,
+        namer: OllamaClient(configuration: currentNamingConfiguration),
+        settleSeconds: 0
+      )
+      processor = captureProcessor
+      activity = "Analyzing two synthetic PDFs locally…"
+      isScanning = true
+      Task {
+        let events = await captureProcessor.scan(force: true)
+        recentEvents = events
+        let snapshot = await captureProcessor.reviewSnapshot()
+        pendingReviews = snapshot.pending
+        renameHistory = snapshot.history
+        isScanning = false
+        activity = "Synthetic demo ready"
+      }
+    }
+  #endif
 }

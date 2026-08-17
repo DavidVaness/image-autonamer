@@ -13,7 +13,15 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
   func applicationDidFinishLaunching(_ notification: Notification) {
     guard !launchedAsLoginItem else { return }
     DispatchQueue.main.async {
-      self.showSettings()
+      #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("--capture-review") {
+          self.showReviewInbox()
+        } else {
+          self.showSettings()
+        }
+      #else
+        self.showSettings()
+      #endif
     }
   }
 
@@ -313,7 +321,25 @@ private struct AppSettingsView: View {
   @ObservedObject var controller: AppController
   let showReviewInbox: () -> Void
   let closeSettings: () -> Void
-  @State private var selectedTab = Tab.general
+  @State private var selectedTab: Tab
+
+  init(
+    controller: AppController,
+    showReviewInbox: @escaping () -> Void,
+    closeSettings: @escaping () -> Void
+  ) {
+    self.controller = controller
+    self.showReviewInbox = showReviewInbox
+    self.closeSettings = closeSettings
+    #if DEBUG
+      _selectedTab = State(
+        initialValue: ProcessInfo.processInfo.arguments.contains("--capture-naming")
+          ? .naming : .general
+      )
+    #else
+      _selectedTab = State(initialValue: .general)
+    #endif
+  }
 
   var body: some View {
     TabView(selection: $selectedTab) {
@@ -476,8 +502,20 @@ private struct ReviewInboxView: View {
   }
 
   @ObservedObject var controller: AppController
-  @State private var section = Section.pending
+  @State private var section: Section
   @State private var draftStems: [UUID: String] = [:]
+
+  init(controller: AppController) {
+    self.controller = controller
+    #if DEBUG
+      _section = State(
+        initialValue: ProcessInfo.processInfo.arguments.contains("--capture-history")
+          ? .history : .pending
+      )
+    #else
+      _section = State(initialValue: .pending)
+    #endif
+  }
 
   var body: some View {
     VStack(spacing: 0) {

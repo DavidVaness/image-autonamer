@@ -13,6 +13,6 @@
   </g>
   <text x="640" y="330" text-anchor="middle" fill="#fff" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="66" font-weight="700">Image Autonamer</text>
   <text x="640" y="395" text-anchor="middle" fill="#c7d2fe" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="30">Useful filenames. Local vision. Zero cloud uploads.</text>
-  <rect x="376" y="472" width="528" height="62" rx="31" fill="#fff" opacity=".1"/>
-  <text x="640" y="512" text-anchor="middle" fill="#e0e7ff" font-family="ui-monospace, SFMono-Regular, monospace" font-size="24">macOS menu bar app + Ollama</text>
+  <rect x="260" y="472" width="760" height="62" rx="31" fill="#fff" opacity=".1"/>
+  <text x="640" y="511" text-anchor="middle" fill="#e0e7ff" font-family="ui-monospace, SFMono-Regular, monospace" font-size="20">REAL APP CAPTURE · SYNTHETIC FILES · LOCAL OLLAMA</text>
 </svg>

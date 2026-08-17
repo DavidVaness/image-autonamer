@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "image-autonamer"
-version = "0.6.0"
+version = "0.6.1"
 description = "Rename downloaded images and PDFs with private, local vision-language models."
 readme = "README.md"
 requires-python = ">=3.11"

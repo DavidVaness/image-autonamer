@@ -12,6 +12,7 @@ Its product promise is simple: a new image or PDF arrives in Downloads and recei
 - Local PDF page rendering, document naming, previews, and extension preservation in v0.6.0.
 - Embedded-text extraction, local OCR fallback, and conservative filename-quality decisions in v0.6.0.
 - An authentic Settings capture and evidence-backed PDF walkthrough in v0.6.0.
+- A 46-second real-app recording driven by isolated synthetic PDFs and local Ollama in v0.6.1.
 
 ## Now
 

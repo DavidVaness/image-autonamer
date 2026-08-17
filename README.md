@@ -21,13 +21,13 @@
 </p>
 
 <p align="center">
-  <img src="docs/assets/demo.gif" width="800" alt="60-second Image Autonamer walkthrough using an authentic settings capture and real local PDF inference results">
+  <img src="docs/assets/demo.gif" width="640" alt="Real Image Autonamer app processing synthetic PDFs with local Ollama inference">
 </p>
 
 <p align="center">
-  <a href="docs/assets/demo.mp4"><strong>Watch the 60-second demo in HD</strong></a>
+  <a href="docs/assets/demo.mp4"><strong>Watch the 46-second real-app demo in HD</strong></a>
   ·
-  <a href="https://github.com/DavidVaness/image-autonamer/releases/latest"><strong>Download v0.6.0</strong></a>
+  <a href="https://github.com/DavidVaness/image-autonamer/releases/latest"><strong>Download v0.6.1</strong></a>
 </p>
 
 ## Install in one command
@@ -47,7 +47,7 @@ That one explicit choice creates a persistent security-scoped bookmark inside th
 Full Disk Access is not required.
 
 > [!NOTE]
-> The v0.6.0 binary is ad-hoc signed and supports Apple Silicon.
+> The v0.6.1 binary is ad-hoc signed and supports Apple Silicon.
 > A Developer ID certificate and Apple notarization are the remaining steps for conventional consumer distribution.
 > Intel Macs can build from source.
 
@@ -233,6 +233,7 @@ Filesystem handling is defensive:
 | First three PDF pages | Full-document rendering or OCR storage | Three pages usually cover identity, continuation context, and totals while bounding memory, latency, and model context. |
 | Embedded text, then Vision OCR | OCR every document unconditionally | Searchable PDFs stay fast and exact, while scanned documents still receive a fully local fallback. |
 | Keep / rename / review gate | Rename every supported PDF | Preserving a merely adequate name is cheaper than destroying useful dates, references, or source-language meaning. |
+| Debug-only isolated capture harness | Recording against a real Downloads folder | The public demo uses the real app and local model with synthetic PDFs in a temporary folder, so it is authentic without exposing or mutating personal files. |
 | One persisted review pipeline | A separate manual renamer | Automatic and reviewed operation share the same sanitizer, collision handling, state, history, and recovery behavior. |
 | Opt-in review for existing users | Changing automation after an update | Existing behavior remains stable while users who want control can enable review explicitly. |
 | Bounded local history | An unlimited activity database | The latest 100 renames provide practical recovery without turning a small utility into a document-management system. |
@@ -276,9 +277,9 @@ swift test
 PYTHONPATH=src python3 -m unittest discover -s tests -v
 
 # Release app and checksum manifest
-./scripts/package-release.sh 0.6.0
+./scripts/package-release.sh 0.6.1
 
-# Rebuild the 60-second MP4 and GIF from an authentic app capture and original title cards
+# Rebuild the 46-second MP4 and GIF from real app-window recordings and original title cards
 ./scripts/build-demo.sh
 
 # Rebuild the native icon and GitHub social preview
