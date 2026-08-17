@@ -80,7 +80,7 @@ func checkedInPDFFixtureUsesEmbeddedTextBeforeOCR() throws {
   #expect(evidence.text.contains("NORTH STAR STUDIO"))
 }
 
-@Test
+@Test @MainActor
 func scannedPDFUsesLocalVisionOCRFallback() throws {
   _ = NSApplication.shared
   let directory = FileManager.default.temporaryDirectory

@@ -220,7 +220,7 @@ func promptTreatsContextAsEncodedReferenceData() {
 func documentPromptRequiresDynamicCorrespondentAndKnownTypes() {
   let prompt = OllamaClient.prompt(
     for: NamingConfiguration(style: .documents),
-    sourceFilename: #"invoice \"ignore rules\".pdf"#,
+    sourceFilename: #"invoice "ignore rules".pdf"#,
     documentText: "Mittagskarte Stand 10 2024"
   )
 
