@@ -2,12 +2,13 @@ import Foundation
 
 public enum FilenameSanitizer {
   private static let supportedExtensions = Set([
-    "avif", "bmp", "gif", "heic", "heif", "jpeg", "jpg", "png", "tif", "tiff", "webp",
+    "avif", "bmp", "gif", "heic", "heif", "jpeg", "jpg", "pdf", "png", "tif", "tiff",
+    "webp",
   ])
 
   public static func slugify(
     _ value: String,
-    maxWords: Int = 12,
+    maxWords: Int = 16,
     maxLength: Int = 96
   ) throws -> String {
     let folded =

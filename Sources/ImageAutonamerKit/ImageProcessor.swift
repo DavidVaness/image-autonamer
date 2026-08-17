@@ -61,8 +61,10 @@ public struct ReviewSnapshot: Sendable, Equatable {
 }
 
 public actor ImageProcessor {
+  fileprivate static let supportedTypesVersion = 2
   private static let supportedExtensions = Set([
-    "avif", "bmp", "gif", "heic", "heif", "jpeg", "jpg", "png", "tif", "tiff", "webp",
+    "avif", "bmp", "gif", "heic", "heif", "jpeg", "jpg", "pdf", "png", "tif", "tiff",
+    "webp",
   ])
 
   private let directory: URL
@@ -181,30 +183,49 @@ public actor ImageProcessor {
     defer { isScanning = false }
 
     do {
-      let images = try discoverImages()
+      let files = try discoverSupportedFiles()
       if !state.didBaseline, !force {
-        for image in images {
-          state.files[image.path] = try fingerprint(for: image)
+        for file in files {
+          state.files[file.path] = try fingerprint(for: file)
         }
         state.didBaseline = true
+        state.supportedTypesVersion = Self.supportedTypesVersion
         try saveState()
         return [
-          ProcessingEvent(kind: .baseline, message: "Protected \(images.count) existing image(s).")
+          ProcessingEvent(kind: .baseline, message: "Protected \(files.count) existing file(s).")
+        ]
+      }
+
+      if state.supportedTypesVersion < Self.supportedTypesVersion, !force {
+        let existingPDFs = files.filter { $0.pathExtension.lowercased() == "pdf" }
+        for pdf in existingPDFs {
+          state.files[pdf.path] = try fingerprint(for: pdf)
+        }
+        state.supportedTypesVersion = Self.supportedTypesVersion
+        try saveState()
+        return [
+          ProcessingEvent(
+            kind: .baseline,
+            message: "Protected \(existingPDFs.count) existing PDF(s) during upgrade."
+          )
         ]
       }
 
       var events: [ProcessingEvent] = []
-      for image in images {
+      for file in files {
         do {
-          if let event = try await process(image, force: force) {
+          if let event = try await process(file, force: force) {
             events.append(event)
           }
         } catch {
-          events.append(Self.failureEvent(for: error, filename: image.lastPathComponent))
+          events.append(Self.failureEvent(for: error, filename: file.lastPathComponent))
         }
       }
-      if force, !state.didBaseline {
+      if force,
+        !state.didBaseline || state.supportedTypesVersion < Self.supportedTypesVersion
+      {
         state.didBaseline = true
+        state.supportedTypesVersion = Self.supportedTypesVersion
         try saveState()
       }
       return events
@@ -228,7 +249,16 @@ public actor ImageProcessor {
       throw ImageAutonamerError.changedDuringAnalysis
     }
 
-    if reviewBeforeRenaming {
+    if suggestion.disposition == .keep {
+      state.files[source.path] = originalFingerprint
+      try saveState()
+      return ProcessingEvent(
+        kind: .skipped,
+        message: "Kept \(source.lastPathComponent). \(decisionSummary(from: suggestion.evidence))"
+      )
+    }
+
+    if reviewBeforeRenaming || suggestion.disposition == .review {
       let item = ReviewItem(
         id: UUID(),
         sourcePath: source.path,
@@ -245,6 +275,12 @@ public actor ImageProcessor {
     }
 
     return try rename(source: source, stem: stem, originalFingerprint: originalFingerprint)
+  }
+
+  private func decisionSummary(from evidence: [String]) -> String {
+    evidence.first(where: { $0.hasPrefix("Decision: ") })?
+      .replacingOccurrences(of: "Decision: ", with: "")
+      ?? "The existing filename is already useful."
   }
 
   private func rename(
@@ -264,7 +300,7 @@ public actor ImageProcessor {
       do {
         try FileManager.default.linkItem(at: source, to: destination)
         break
-      } catch  where FileManager.default.fileExists(atPath: destination.path) {
+      } catch where FileManager.default.fileExists(atPath: destination.path) {
         destination = uniqueDestination(for: source, stem: stem)
       }
     }
@@ -294,7 +330,7 @@ public actor ImageProcessor {
     )
   }
 
-  private func discoverImages() throws -> [URL] {
+  private func discoverSupportedFiles() throws -> [URL] {
     let keys: Set<URLResourceKey> = [.isRegularFileKey, .isSymbolicLinkKey]
     return try FileManager.default.contentsOfDirectory(
       at: directory,
@@ -383,6 +419,7 @@ struct FileFingerprint: Codable, Equatable, Sendable {
 
 private struct ProcessingState: Codable, Sendable {
   var didBaseline = false
+  var supportedTypesVersion = ImageProcessor.supportedTypesVersion
   var files: [String: FileFingerprint] = [:]
   var pending: [ReviewItem] = []
   var history: [RenameRecord] = []
@@ -392,6 +429,8 @@ private struct ProcessingState: Codable, Sendable {
   init(from decoder: any Decoder) throws {
     let container = try decoder.container(keyedBy: CodingKeys.self)
     didBaseline = try container.decodeIfPresent(Bool.self, forKey: .didBaseline) ?? false
+    supportedTypesVersion =
+      try container.decodeIfPresent(Int.self, forKey: .supportedTypesVersion) ?? 1
     files = try container.decodeIfPresent([String: FileFingerprint].self, forKey: .files) ?? [:]
     pending = try container.decodeIfPresent([ReviewItem].self, forKey: .pending) ?? []
     history = try container.decodeIfPresent([RenameRecord].self, forKey: .history) ?? []

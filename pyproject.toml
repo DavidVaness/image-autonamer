@@ -4,14 +4,14 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "image-autonamer"
-version = "0.5.0"
-description = "Rename downloaded images with private, local vision-language models."
+version = "0.6.0"
+description = "Rename downloaded images and PDFs with private, local vision-language models."
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
 license-files = ["LICENSE"]
 authors = [{ name = "David Vaness" }]
-keywords = ["ollama", "vlm", "image", "rename", "macos", "launchd"]
+keywords = ["ollama", "vlm", "image", "pdf", "rename", "macos", "launchd"]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Environment :: Console",
@@ -20,6 +20,9 @@ classifiers = [
   "Programming Language :: Python :: 3.11",
 ]
 dependencies = []
+
+[project.optional-dependencies]
+dev = ["reportlab>=4.0"]
 
 [project.scripts]
 image-autonamer = "image_autonamer.cli:main"

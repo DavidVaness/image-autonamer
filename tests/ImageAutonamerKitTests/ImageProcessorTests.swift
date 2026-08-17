@@ -6,9 +6,10 @@ import Testing
 private struct StaticNamer: ImageNaming {
   let name: String
   var evidence: [String] = []
+  var disposition: NamingDisposition = .rename
 
   func suggest(for _: URL) async throws -> ImageNamingSuggestion {
-    ImageNamingSuggestion(name: name, evidence: evidence)
+    ImageNamingSuggestion(name: name, evidence: evidence, disposition: disposition)
   }
 }
 
@@ -30,7 +31,7 @@ func firstScanProtectsExistingImages() async throws {
 
   let events = await processor.scan()
 
-  #expect(events == [.init(kind: .baseline, message: "Protected 1 existing image(s).")])
+  #expect(events == [.init(kind: .baseline, message: "Protected 1 existing file(s).")])
   #expect(FileManager.default.fileExists(atPath: existing.path))
 }
 
@@ -57,6 +58,47 @@ func newImageIsRenamedAfterBaseline() async throws {
 }
 
 @Test
+func newPDFIsDiscoveredAndKeepsItsExtension() async throws {
+  let fixture = try Fixture(settleSeconds: 0)
+  defer { fixture.remove() }
+  let processor = fixture.processor(namer: StaticNamer(name: "North Star Invoice INV-2048"))
+  _ = await processor.scan()
+  let source = fixture.directory.appending(path: "download.PDF")
+  try Data("synthetic pdf".utf8).write(to: source)
+
+  let events = await processor.scan()
+
+  #expect(events.count == 1)
+  #expect(events[0].kind == .renamed)
+  #expect(!FileManager.default.fileExists(atPath: source.path))
+  #expect(
+    FileManager.default.fileExists(
+      atPath: fixture.directory.appending(path: "north-star-invoice-inv-2048.pdf").path
+    )
+  )
+}
+
+@Test
+func upgradeProtectsPDFsThatPredatePDFSupport() async throws {
+  let fixture = try Fixture(settleSeconds: 0)
+  defer { fixture.remove() }
+  try Data(#"{"didBaseline":true,"files":{}}"#.utf8).write(to: fixture.stateURL)
+  let existing = fixture.directory.appending(path: "existing-document.pdf")
+  try Data("synthetic pdf".utf8).write(to: existing)
+  let processor = fixture.processor(namer: StaticNamer(name: "Should Never Be Used"))
+
+  let migrationEvents = await processor.scan()
+  let nextEvents = await processor.scan()
+
+  #expect(
+    migrationEvents
+      == [.init(kind: .baseline, message: "Protected 1 existing PDF(s) during upgrade.")]
+  )
+  #expect(nextEvents.isEmpty)
+  #expect(FileManager.default.fileExists(atPath: existing.path))
+}
+
+@Test
 func reviewModeQueuesSuggestionWithoutRenaming() async throws {
   let fixture = try Fixture(settleSeconds: 0)
   defer { fixture.remove() }
@@ -77,6 +119,53 @@ func reviewModeQueuesSuggestionWithoutRenaming() async throws {
   #expect(snapshot.pending[0].originalFilename == "IMG_0001.PNG")
   #expect(snapshot.pending[0].proposedFilename == "orange-cat-on-sofa.png")
   #expect(snapshot.pending[0].evidence == ["Subject: Orange cat"])
+}
+
+@Test
+func ambiguousSuggestionQueuesEvenWhenGlobalReviewIsDisabled() async throws {
+  let fixture = try Fixture(settleSeconds: 0)
+  defer { fixture.remove() }
+  let processor = fixture.processor(
+    namer: StaticNamer(
+      name: "DB Ticket Receipt",
+      evidence: ["Decision: The improvement is ambiguous."],
+      disposition: .review
+    )
+  )
+  _ = await processor.scan()
+  let source = fixture.directory.appending(path: "KUNDENBELEG.pdf")
+  try Data("synthetic pdf".utf8).write(to: source)
+
+  let events = await processor.scan()
+
+  #expect(events == [.init(kind: .queued, message: "Review db-ticket-receipt.pdf.")])
+  #expect(FileManager.default.fileExists(atPath: source.path))
+  #expect(await processor.reviewSnapshot().pending.count == 1)
+}
+
+@Test
+func usefulExistingFilenameIsKeptAndRecordedAsProcessed() async throws {
+  let fixture = try Fixture(settleSeconds: 0)
+  defer { fixture.remove() }
+  let processor = fixture.processor(
+    namer: StaticNamer(
+      name: "Generic Statement",
+      evidence: ["Decision: The proposal would discard a visible date."],
+      disposition: .keep
+    )
+  )
+  _ = await processor.scan()
+  let source = fixture.directory.appending(path: "2026-08-statement.pdf")
+  try Data("synthetic pdf".utf8).write(to: source)
+
+  let firstEvents = await processor.scan()
+  let secondEvents = await processor.scan()
+
+  #expect(firstEvents.count == 1)
+  #expect(firstEvents[0].kind == .skipped)
+  #expect(firstEvents[0].message.contains("Kept 2026-08-statement.pdf"))
+  #expect(secondEvents.isEmpty)
+  #expect(FileManager.default.fileExists(atPath: source.path))
 }
 
 @Test

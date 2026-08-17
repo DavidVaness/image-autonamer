@@ -66,7 +66,7 @@ final class AppController: ObservableObject {
   func scanNow(force: Bool = false) {
     guard !isScanning, let processor else { return }
     isScanning = true
-    activity = force ? "Processing existing images…" : "Checking Downloads…"
+    activity = force ? "Processing existing files…" : "Checking Downloads…"
     Task {
       let events = await processor.scan(force: force)
       if events.isEmpty {
@@ -226,13 +226,13 @@ final class AppController: ObservableObject {
     }
 
     let panel = NSOpenPanel()
-    panel.title = "Preview an image name"
-    panel.message = "The selected image is analyzed locally and will not be renamed."
+    panel.title = "Preview a file name"
+    panel.message = "The selected image or PDF is analyzed locally and will not be renamed."
     panel.prompt = "Preview Name"
     panel.canChooseFiles = true
     panel.canChooseDirectories = false
     panel.allowsMultipleSelection = false
-    panel.allowedContentTypes = [.image]
+    panel.allowedContentTypes = [.image, .pdf]
 
     guard panel.runModal() == .OK, let imageURL = panel.url else { return }
     let configuration = NamingConfiguration(

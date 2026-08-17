@@ -1,6 +1,7 @@
 import AppKit
 import CoreServices
 import ImageAutonamerKit
+import PDFKit
 import SwiftUI
 
 @MainActor
@@ -270,14 +271,14 @@ private struct MenuContent: View {
     }
     .padding(14)
     .frame(width: 340)
-    .alert("Process existing images?", isPresented: $showProcessAllConfirmation) {
+    .alert("Process existing files?", isPresented: $showProcessAllConfirmation) {
       Button("Cancel", role: .cancel) {}
       Button("Process All") {
         controller.scanNow(force: true)
       }
     } message: {
       Text(
-        "This renames every supported image currently in Downloads. New images are processed automatically without this step."
+        "This renames every supported image or PDF currently in Downloads. New files are processed automatically without this step."
       )
     }
   }
@@ -392,9 +393,11 @@ private struct GeneralSettingsView: View {
               set: { controller.setLaunchAtLogin($0) }
             )
           )
-          Text("The app keeps running in the menu bar and checks for new images every 15 seconds.")
-            .font(.caption)
-            .foregroundStyle(.secondary)
+          Text(
+            "The app keeps running in the menu bar and checks for new images and PDFs every 15 seconds."
+          )
+          .font(.caption)
+          .foregroundStyle(.secondary)
           Divider()
           HStack {
             Toggle(
@@ -411,7 +414,7 @@ private struct GeneralSettingsView: View {
             }
           }
           Text(
-            "When enabled, new images wait for approval. Automatic renaming remains the default."
+            "When enabled, every new file waits for approval. Ambiguous PDF improvements are always queued."
           )
           .font(.caption)
           .foregroundStyle(.secondary)
@@ -451,14 +454,14 @@ private struct GeneralSettingsView: View {
       Spacer()
     }
     .padding(24)
-    .alert("Process existing images?", isPresented: $showProcessAllConfirmation) {
+    .alert("Process existing files?", isPresented: $showProcessAllConfirmation) {
       Button("Cancel", role: .cancel) {}
       Button("Process All") {
         controller.scanNow(force: true)
       }
     } message: {
       Text(
-        "This renames every supported image currently in Downloads. New images are processed automatically without this step."
+        "This renames every supported image or PDF currently in Downloads. New files are processed automatically without this step."
       )
     }
   }
@@ -543,8 +546,8 @@ private struct ReviewInboxView: View {
         message: !controller.hasFolderAccess
           ? "Grant Downloads access in General Settings to review suggestions."
           : controller.reviewBeforeRenaming
-            ? "New image suggestions will appear here before renaming."
-            : "Enable Review Before Renaming in General Settings to hold new suggestions here."
+            ? "New image and PDF suggestions will appear here before renaming."
+            : "Ambiguous PDF improvements appear here automatically. Enable review to hold every suggestion."
       )
     } else {
       VStack(spacing: 0) {
@@ -693,7 +696,7 @@ private struct ReviewInboxView: View {
 
   private func thumbnail(for url: URL) -> some View {
     Group {
-      if let image = NSImage(contentsOf: url) {
+      if let image = previewImage(for: url) {
         Image(nsImage: image)
           .resizable()
           .scaledToFit()
@@ -707,6 +710,14 @@ private struct ReviewInboxView: View {
     .background(.quaternary.opacity(0.5))
     .clipShape(RoundedRectangle(cornerRadius: 8))
     .accessibilityLabel("Preview of \(url.lastPathComponent)")
+  }
+
+  private func previewImage(for url: URL) -> NSImage? {
+    if url.pathExtension.lowercased() == "pdf" {
+      guard let page = PDFDocument(url: url)?.page(at: 0) else { return nil }
+      return page.thumbnail(of: NSSize(width: 152, height: 128), for: .mediaBox)
+    }
+    return NSImage(contentsOf: url)
   }
 
   private func emptyState(icon: String, title: String, message: String) -> some View {
@@ -875,7 +886,7 @@ private struct NamingSettingsView: View {
               if controller.previewResult == nil && controller.previewError == nil
                 && !controller.isPreviewing
               {
-                Text("Preview analyzes one image without renaming or moving it.")
+                Text("Preview analyzes one image or PDF without renaming or moving it.")
                   .font(.caption)
                   .foregroundStyle(.secondary)
               }

@@ -1,22 +1,27 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
-  <rect width="1280" height="720" fill="#fafafa"/>
-  <text x="640" y="87" text-anchor="middle" fill="#111827" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="40" font-weight="700">Designed for least privilege</text>
-  <text x="640" y="132" text-anchor="middle" fill="#6b7280" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="23">One explicit folder choice. Three narrow entitlements.</text>
-  <rect x="95" y="195" width="1090" height="410" rx="30" fill="#fff" stroke="#e5e7eb" stroke-width="2"/>
-  <rect x="155" y="255" width="270" height="255" rx="24" fill="#eef2ff"/>
-  <text x="290" y="315" text-anchor="middle" fill="#4338ca" font-family="sans-serif" font-size="54">📁</text>
-  <text x="290" y="374" text-anchor="middle" fill="#312e81" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="24" font-weight="700">Downloads only</text>
-  <text x="290" y="414" text-anchor="middle" fill="#6366f1" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="17">Security-scoped bookmark</text>
-  <path d="M454 383h116" stroke="#a78bfa" stroke-width="7" stroke-linecap="round"/>
-  <path d="m549 362 23 21-23 21" fill="none" stroke="#a78bfa" stroke-width="7" stroke-linecap="round"/>
-  <rect x="598" y="255" width="270" height="255" rx="24" fill="#f5f3ff"/>
-  <text x="733" y="315" text-anchor="middle" fill="#7c3aed" font-family="sans-serif" font-size="54">🛡</text>
-  <text x="733" y="374" text-anchor="middle" fill="#581c87" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="24" font-weight="700">App Sandbox</text>
-  <text x="733" y="414" text-anchor="middle" fill="#7e22ce" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="17">No Full Disk Access</text>
-  <path d="M897 383h80" stroke="#4ade80" stroke-width="7" stroke-linecap="round"/>
-  <path d="m956 362 23 21-23 21" fill="none" stroke="#4ade80" stroke-width="7" stroke-linecap="round"/>
-  <rect x="1004" y="255" width="120" height="255" rx="24" fill="#ecfdf5"/>
-  <circle cx="1064" cy="350" r="35" fill="#22c55e"/>
-  <path d="m1048 350 11 11 22-27" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
-  <text x="1064" y="424" text-anchor="middle" fill="#047857" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="17" font-weight="700">Private</text>
+  <rect width="1280" height="720" fill="#0f172a"/>
+  <text x="90" y="105" fill="#a78bfa" font-family="-apple-system, sans-serif" font-size="20" font-weight="700">04  HUMAN CONTROL WHEN YOU WANT IT</text>
+  <text x="90" y="169" fill="#fff" font-family="-apple-system, sans-serif" font-size="44" font-weight="700">Review. Edit. Approve. Undo.</text>
+  <g transform="translate(90 265)">
+    <rect width="230" height="210" rx="22" fill="#1e293b" stroke="#334155" stroke-width="2"/>
+    <circle cx="115" cy="67" r="34" fill="#7c3aed"/><path d="M98 67h34M115 50v34" stroke="#fff" stroke-width="6" stroke-linecap="round"/>
+    <text x="115" y="137" text-anchor="middle" fill="#fff" font-family="-apple-system, sans-serif" font-size="24" font-weight="700">Review</text>
+    <text x="115" y="170" text-anchor="middle" fill="#94a3b8" font-family="-apple-system, sans-serif" font-size="17">See the evidence</text>
+    <path d="M250 105h70" stroke="#475569" stroke-width="4"/>
+    <rect x="340" width="230" height="210" rx="22" fill="#1e293b" stroke="#334155" stroke-width="2"/>
+    <circle cx="455" cy="67" r="34" fill="#2563eb"/><path d="m440 77 30-30M443 50l27 27" stroke="#fff" stroke-width="5" stroke-linecap="round"/>
+    <text x="455" y="137" text-anchor="middle" fill="#fff" font-family="-apple-system, sans-serif" font-size="24" font-weight="700">Edit</text>
+    <text x="455" y="170" text-anchor="middle" fill="#94a3b8" font-family="-apple-system, sans-serif" font-size="17">Keep final say</text>
+    <path d="M590 105h70" stroke="#475569" stroke-width="4"/>
+    <rect x="680" width="230" height="210" rx="22" fill="#1e293b" stroke="#334155" stroke-width="2"/>
+    <circle cx="795" cy="67" r="34" fill="#22c55e"/><path d="m778 67 12 12 23-28" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="795" y="137" text-anchor="middle" fill="#fff" font-family="-apple-system, sans-serif" font-size="24" font-weight="700">Approve</text>
+    <text x="795" y="170" text-anchor="middle" fill="#94a3b8" font-family="-apple-system, sans-serif" font-size="17">Safe rename</text>
+    <path d="M930 105h70" stroke="#475569" stroke-width="4"/>
+    <rect x="1020" width="170" height="210" rx="22" fill="#1e293b" stroke="#334155" stroke-width="2"/>
+    <circle cx="1105" cy="67" r="34" fill="#f59e0b"/><path d="M1121 58a24 24 0 1 0 3 24M1121 58v18h-18" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="1105" y="137" text-anchor="middle" fill="#fff" font-family="-apple-system, sans-serif" font-size="24" font-weight="700">Undo</text>
+    <text x="1105" y="170" text-anchor="middle" fill="#94a3b8" font-family="-apple-system, sans-serif" font-size="17">Never overwrite</text>
+  </g>
+  <text x="640" y="590" text-anchor="middle" fill="#cbd5e1" font-family="-apple-system, sans-serif" font-size="22">One persisted pipeline powers automatic and reviewed renames.</text>
 </svg>

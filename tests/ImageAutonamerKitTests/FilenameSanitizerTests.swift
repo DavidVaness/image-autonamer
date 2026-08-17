@@ -19,6 +19,14 @@ func limitsWords() throws {
 }
 
 @Test
+func removesPDFExtensionReturnedByModel() throws {
+  #expect(
+    try FilenameSanitizer.slugify("North Star invoice.pdf")
+      == "north-star-invoice"
+  )
+}
+
+@Test
 func rejectsEmptyOutput() {
   #expect(throws: ImageAutonamerError.self) {
     try FilenameSanitizer.slugify("💥")

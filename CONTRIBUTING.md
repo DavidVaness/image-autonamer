@@ -25,7 +25,7 @@ For an editable command-line installation:
 ```sh
 python3 -m venv .venv
 . .venv/bin/activate
-python -m pip install -e .
+python -m pip install -e '.[dev]'
 ```
 
 ## Pull requests
@@ -36,7 +36,7 @@ Run both test suites and verify the signed app bundle before opening a pull requ
 
 ## Product scope
 
-Image Autonamer intentionally does one thing: it gives newly downloaded images useful filenames using local inference.
+Image Autonamer intentionally does one thing: it gives newly downloaded images and PDFs useful filenames using local inference.
 Improvements to naming quality, reliability, privacy, installation, accessibility, and failure recovery are welcome.
 General file organization, photo management, cloud inference, and image editing are deliberately outside the project scope.
 

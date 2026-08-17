@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  A sandboxed macOS menu bar app that watches Downloads, understands new images with a local vision-language model, and safely renames them.
+  A sandboxed macOS menu bar app that watches Downloads, understands new images and PDFs with a local vision-language model, and safely renames them.
 </p>
 
 <p align="center">
@@ -21,13 +21,13 @@
 </p>
 
 <p align="center">
-  <img src="docs/assets/demo.gif" width="800" alt="60-second Image Autonamer demo showing an image renamed locally and safely">
+  <img src="docs/assets/demo.gif" width="800" alt="60-second Image Autonamer walkthrough using an authentic settings capture and real local PDF inference results">
 </p>
 
 <p align="center">
   <a href="docs/assets/demo.mp4"><strong>Watch the 60-second demo in HD</strong></a>
   ·
-  <a href="https://github.com/DavidVaness/image-autonamer/releases/latest"><strong>Download v0.5.0</strong></a>
+  <a href="https://github.com/DavidVaness/image-autonamer/releases/latest"><strong>Download v0.6.0</strong></a>
 </p>
 
 ## Install in one command
@@ -47,7 +47,7 @@ That one explicit choice creates a persistent security-scoped bookmark inside th
 Full Disk Access is not required.
 
 > [!NOTE]
-> The v0.5.0 binary is ad-hoc signed and supports Apple Silicon.
+> The v0.6.0 binary is ad-hoc signed and supports Apple Silicon.
 > A Developer ID certificate and Apple notarization are the remaining steps for conventional consumer distribution.
 > Intel Macs can build from source.
 
@@ -74,15 +74,17 @@ Representative everyday results look like this:
 | `Screenshot 2026-08-11.png` | `purple-sales-dashboard-bar-chart.png` | Interface, color, and primary chart |
 | `IMG_8472.JPG` | `red-coffee-mug-beside-laptop.jpg` | Main objects and their relationship |
 | `download.webp` | `orange-cat-sleeping-on-sofa.webp` | Subject, action, and setting |
+| `north-star-invoice.pdf` | `2026-08-15-north-star-studio-invoice-inv-2048-invoice-summary-and-payment-notes.pdf` | Date, visible correspondent, document type, and reference across three pages |
 
 The original extension is normalized and preserved.
 If a filename already exists, Image Autonamer adds `-2`, `-3`, and so on without overwriting anything.
+For PDFs, the existing filename is part of the decision instead of being discarded blindly.
 
 ## Naming modes
 
 Open Image Autonamer from Finder, Spotlight, or your app switcher to show Settings, then choose the **Naming** tab.
 You can also select **Configure…** from the Naming status row in the menu bar app.
-The preview button analyzes a selected image locally and shows the proposed filename without renaming or moving the file.
+The preview button analyzes a selected image or PDF locally and shows the proposed filename without renaming or moving the file.
 
 | Mode | Example result | Best for |
 | --- | --- | --- |
@@ -102,8 +104,10 @@ There is intentionally no unrestricted system-prompt editor.
 ## Review Inbox
 
 Enable **Review suggestions before renaming** in General Settings when you want approval instead of immediate automation.
-New suggestions then wait in Review Inbox with an image preview, the original filename, an editable proposed filename, and the visible evidence used to produce it.
+New suggestions then wait in Review Inbox with a thumbnail preview, the original filename, an editable proposed filename, and the visible evidence used to produce it.
 Approve one suggestion, keep the original name, or approve the whole queue after reviewing edits.
+Ambiguous PDF improvements are queued even when global review is disabled.
+PDFs with useful existing names are kept automatically, while generic names are renamed only when the proposal adds visible document information.
 
 Every completed rename appears in History, including renames performed automatically.
 Undo restores the original filename only when that path is free, so it never overwrites a newer file.
@@ -111,14 +115,15 @@ The pending queue and the latest 100 rename records survive app restarts in the 
 
 ## Measured locally
 
-The repository includes eight original, MIT-licensed evaluation images across illustrations, screenshots, objects, documents, diagrams, interfaces, and indoor and outdoor scenes.
-The harness records the proposed filename, concept coverage, forbidden-concept hits, and latency for every image without renaming the fixtures.
+The repository includes eight original, MIT-licensed evaluation images plus one synthetic three-page PDF across illustrations, screenshots, objects, documents, diagrams, interfaces, and indoor and outdoor scenes.
+The harness records the proposed filename, concept coverage, forbidden-concept hits, and latency without renaming the fixtures.
 
 The checked-in `qwen3-vl:4b` baseline produced useful filenames for all 8 fixtures with a warm-model median local inference time of approximately 0.8 seconds on the release machine.
 Cold-model latency was higher and varies substantially with hardware and Ollama state.
 This is a small transparent baseline, not a claim of general model accuracy.
 
 ```sh
+python3 -m pip install -e '.[dev]'
 ./scripts/build-eval-fixtures.sh
 ./eval/run.py --model qwen3-vl:4b --output eval/results/qwen3-vl-4b.json
 ```
@@ -134,21 +139,26 @@ Image Autonamer keeps inference on the Mac and limits automatic filesystem acces
 ## What it does
 
 - Runs image understanding locally through [Ollama](https://ollama.com/) and `qwen3-vl:4b`.
-- Watches new top-level images in Downloads every 15 seconds.
+- Watches new top-level images and PDFs in Downloads every 15 seconds.
 - Starts automatically through the native macOS login-item API.
 - Uses the App Sandbox with only user-selected read/write and outbound client entitlements.
 - Shows whether Downloads access is granted and keeps recovery one click away.
-- Protects images that existed before first-run setup.
+- Protects supported files that existed before first-run setup.
 - Waits for downloads to settle and verifies that a file did not change during analysis.
 - Treats model output as untrusted input and reduces it to a safe lowercase ASCII slug.
+- Extracts embedded PDF text first and uses local Apple Vision OCR only when a scan has no useful text layer.
+- Compares existing and proposed PDF names, then chooses keep, rename, or review conservatively.
 - Offers three focused naming modes, dynamic document recipes, and a no-rename preview instead of an open-ended prompt surface.
 - Offers an opt-in Review Inbox with editable suggestions, visible evidence, bulk approval, and rename history.
 - Makes automatic and approved renames reversible without overwriting files created later.
 - Uses collision-safe filesystem operations that never overwrite another file.
 - Includes a standalone Python CLI for dry runs, one-off images, recursive batches, and Linux.
 
-The native app recognizes AVIF, BMP, GIF, HEIC, HEIF, JPEG, PNG, TIFF, and WebP by extension.
+The native app recognizes AVIF, BMP, GIF, HEIC, HEIF, JPEG, PDF, PNG, TIFF, and WebP by extension.
 AppKit converts each image to PNG before inference, which gives Ollama a consistent input format.
+PDFKit renders up to the first three PDF pages to PNG locally before inference.
+The same pages provide bounded embedded text or an on-device Vision OCR fallback for filename-quality checks.
+The PDF itself never leaves the Mac and its original `.pdf` extension is preserved.
 
 ## How it works
 
@@ -156,18 +166,26 @@ AppKit converts each image to PNG before inference, which gives Ollama a consist
 flowchart LR
     A["Downloads folder"] --> B["15-second scan"]
     B --> C["Settle and fingerprint checks"]
-    C --> D["AppKit PNG conversion"]
-    D --> E["Local Ollama VLM"]
-    E --> F["Structured visible facts"]
-    F --> G["Deterministic name composer and sanitizer"]
-    G --> H{"Review enabled?"}
-    H -->|Yes| I["Persisted Review Inbox"]
-    I --> J["Approve or keep original"]
-    H -->|No| K["Automatic approval"]
-    J --> L["Hard-link-first safe rename"]
-    K --> L
-    L --> M["History and collision-safe undo"]
-    M --> N["Atomic state file"]
+    C --> D{"Input type"}
+    D -->|Image| E["AppKit PNG conversion"]
+    D -->|PDF| P["PDFKit text + first 3 pages"]
+    P --> Q["Vision OCR fallback"]
+    Q --> E
+    E --> F["Local Ollama VLM"]
+    F --> G["Structured visible facts"]
+    G --> H["Deterministic composer and filename quality gate"]
+    H --> I{"Filename decision"}
+    I -->|Keep| S["Keep existing name"]
+    I -->|Review| J["Persisted Review Inbox"]
+    I -->|Rename| R{"Global review enabled?"}
+    R -->|Yes| J
+    J --> K["Approve or keep original"]
+    R -->|No| L["Automatic approval"]
+    K --> M["Hard-link-first safe rename"]
+    L --> M
+    M --> N["History and collision-safe undo"]
+    S --> O["Atomic state file"]
+    N --> O["Atomic state file"]
 ```
 
 `ImageProcessor` is a Swift actor, so scans cannot mutate state concurrently.
@@ -185,11 +203,15 @@ Image bytes are sent to the configured Ollama endpoint, which is hard-coded by d
 The sandbox entitlement technically permits outbound client connections because macOS does not offer a localhost-only network entitlement.
 The shipped code uses no remote endpoint.
 Optional naming context is included only in requests to that same local endpoint and is stored in the app's private preferences.
+PDF pages are rasterized in memory by PDFKit and only those page images are sent to local Ollama.
+Embedded text and Vision OCR output are bounded, held in memory, and sent only to that same local endpoint.
+The existing filename is JSON-escaped and explicitly treated as untrusted reference data.
 
 Filesystem handling is defensive:
 
 - Unsupported files, hidden files, subfolders, and symbolic links are ignored.
-- Existing images are baselined during setup instead of unexpectedly renamed.
+- Existing supported files are baselined during setup instead of unexpectedly renamed.
+- Existing PDFs are baselined once when upgrading from a version that did not support PDFs.
 - A second fingerprint check rejects files modified during model inference.
 - A hard-link-first operation claims the destination atomically before removing the source name.
 - Destination collisions select a numbered suffix instead of overwriting.
@@ -208,6 +230,9 @@ Filesystem handling is defensive:
 | Bounded reference context | An unrestricted system-prompt editor | Users can add domain vocabulary without weakening visible-evidence rules or turning the app into a prompt workbench. |
 | Dynamic visible correspondents | A manually maintained company list | Each document can name its actual issuer while the visible-evidence gate prevents unsupported brand guesses. |
 | Type-specific document recipes | One generic business filename | Invoices, receipts, statements, and other documents include only metadata that is useful for that type. |
+| First three PDF pages | Full-document rendering or OCR storage | Three pages usually cover identity, continuation context, and totals while bounding memory, latency, and model context. |
+| Embedded text, then Vision OCR | OCR every document unconditionally | Searchable PDFs stay fast and exact, while scanned documents still receive a fully local fallback. |
+| Keep / rename / review gate | Rename every supported PDF | Preserving a merely adequate name is cheaper than destroying useful dates, references, or source-language meaning. |
 | One persisted review pipeline | A separate manual renamer | Automatic and reviewed operation share the same sanitizer, collision handling, state, history, and recovery behavior. |
 | Opt-in review for existing users | Changing automation after an update | Existing behavior remains stable while users who want control can enable review explicitly. |
 | Bounded local history | An unlimited activity database | The latest 100 renames provide practical recovery without turning a small utility into a document-management system. |
@@ -216,7 +241,7 @@ Filesystem handling is defensive:
 
 ## Manual CLI
 
-The Python 3.11+ CLI is useful for dry runs, individual files, recursive directories, or non-macOS systems.
+The image-only Python 3.11+ CLI is useful for dry runs, individual files, recursive directories, or non-macOS systems.
 It is not sandboxed, so the native app is the safer choice for continuous macOS automation.
 
 Preview without changing files:
@@ -251,16 +276,16 @@ swift test
 PYTHONPATH=src python3 -m unittest discover -s tests -v
 
 # Release app and checksum manifest
-./scripts/package-release.sh 0.5.0
+./scripts/package-release.sh 0.6.0
 
-# Rebuild the 60-second MP4 and GIF from original SVG sources
+# Rebuild the 60-second MP4 and GIF from an authentic app capture and original title cards
 ./scripts/build-demo.sh
 
 # Rebuild the native icon and GitHub social preview
 ./scripts/build-brand-assets.py
 ```
 
-Native tests cover sanitization, first-run protection, review queuing, edited approval, rejection, safe renaming, collision handling, history, and undo.
+Native tests cover sanitization, first-run protection, PDF text extraction, page rendering, filename decisions, PDF discovery, review queuing, edited approval, rejection, safe renaming, collision handling, history, and undo.
 Python tests additionally cover the CLI, state database, file settling, discovery, and Ollama request/response contract.
 CI intentionally mocks Ollama because downloading a multi-gigabyte model on every run would make the suite slow and wasteful.
 

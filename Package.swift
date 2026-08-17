@@ -12,14 +12,20 @@ let package = Package(
   targets: [
     .target(
       name: "ImageAutonamerKit",
-      linkerSettings: [.linkedFramework("AppKit")]
+      linkerSettings: [
+        .linkedFramework("AppKit"),
+        .linkedFramework("PDFKit"),
+        .linkedFramework("Vision"),
+      ]
     ),
     .executableTarget(
       name: "ImageAutonamerMac",
       dependencies: ["ImageAutonamerKit"],
       linkerSettings: [
         .linkedFramework("AppKit"),
+        .linkedFramework("PDFKit"),
         .linkedFramework("ServiceManagement"),
+        .linkedFramework("Vision"),
       ]
     ),
     .testTarget(
